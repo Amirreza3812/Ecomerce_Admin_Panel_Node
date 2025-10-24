@@ -105,7 +105,6 @@ const options = {
               type: "string",
               example: "https://example.com/coffee.jpg",
             },
-            slug: { type: "string", example: "coffee" },
             status: {
               type: "string",
               enum: ["active", "inactive"],
@@ -130,7 +129,6 @@ const options = {
               type: "string",
               example: "https://example.com/hot-coffee.jpg",
             },
-            slug: { type: "string", example: "hot-coffee" },
             status: {
               type: "string",
               enum: ["active", "inactive"],

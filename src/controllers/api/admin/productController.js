@@ -103,6 +103,9 @@ const createProduct = catchAsync(async (req, res, next) => {
     subcategory_id,
     name,
     price,
+    sale_price, // <-- NEW
+    sale_start_date, // <-- NEW
+    sale_end_date, // <-- NEW
     description,
     ingredients,
     stock,
@@ -131,6 +134,9 @@ const createProduct = catchAsync(async (req, res, next) => {
     subcategory_id,
     name,
     price,
+    sale_price, // <-- NEW
+    sale_start_date, // <-- NEW
+    sale_end_date, // <-- NEW
     description,
     image,
     ingredients,
@@ -179,6 +185,9 @@ const updateProduct = catchAsync(async (req, res, next) => {
     subcategory_id,
     name,
     price,
+    sale_price, // <-- NEW
+    sale_start_date, // <-- NEW
+    sale_end_date, // <-- NEW
     description,
     ingredients,
     stock,
@@ -214,6 +223,11 @@ const updateProduct = catchAsync(async (req, res, next) => {
     subcategory_id: subcategory_id || product.subcategory_id,
     name: name || product.name,
     price: price || product.price,
+    sale_price: sale_price !== undefined ? sale_price : product.sale_price, // <-- NEW
+    sale_start_date:
+      sale_start_date !== undefined ? sale_start_date : product.sale_start_date, // <-- NEW
+    sale_end_date:
+      sale_end_date !== undefined ? sale_end_date : product.sale_end_date, // <-- NEW
     description: description || product.description,
     image,
     ingredients: ingredients || product.ingredients,

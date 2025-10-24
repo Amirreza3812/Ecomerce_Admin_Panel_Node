@@ -11,6 +11,7 @@ EXPRESS_ADMIN_PANEL/
 │   │   ├── api/
 │   │   │   ├── admin/
 │   │   │   │    ├── adminAuthController.js
+│   │   │   │    ├── categoryController.js
 │   │   │   │    ├── customerManagementController.js
 │   │   │   │    ├── dashboardController.js
 │   │   │   │    ├── orderController.js

@@ -1,137 +1,23 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 const {
   increaseAllPrices,
   applyDiscountToAll,
   setBulkPrices,
-  getPriceAnalytics
-} = require('../../controllers/api/admin/priceController');
+  getPriceAnalytics,
+  restoreOriginalPrices,
+  restoreExpiredSales,
+} = require("../../controllers/api/admin/priceController");
 
-const { adminWithAudit } = require('../../middlewares/adminAuth');
-const { body, query, validationResult } = require('express-validator');
+const { adminWithAudit } = require("../../middlewares/adminAuth");
 
-// Validation middleware
-const validatePriceIncrease = [
-  body('percentage')
-    .isFloat({ min: 0.01, max: 100 })
-    .withMessage('Percentage must be between 0.01 and 100'),
-
-  body('categoryId')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Category ID must be a positive integer'),
-
-  body('subcategoryId')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Subcategory ID must be a positive integer'),
-
-  (req, res, next) => {
-    // Cannot specify both categoryId and subcategoryId
-    if (req.body.categoryId && req.body.subcategoryId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot specify both categoryId and subcategoryId'
-      });
-    }
-
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-    next();
-  }
-];
-
-const validatePriceDiscount = [
-  body('percentage')
-    .isFloat({ min: 0.01, max: 99.99 })
-    .withMessage('Discount percentage must be between 0.01 and 99.99'),
-
-  body('categoryId')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Category ID must be a positive integer'),
-
-  body('subcategoryId')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Subcategory ID must be a positive integer'),
-
-  (req, res, next) => {
-    // Cannot specify both categoryId and subcategoryId
-    if (req.body.categoryId && req.body.subcategoryId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot specify both categoryId and subcategoryId'
-      });
-    }
-
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-    next();
-  }
-];
-
-const validateBulkPrices = [
-  body('updates')
-    .isArray({ min: 1, max: 100 })
-    .withMessage('Updates must be an array with 1-100 items'),
-
-  body('updates.*.productId')
-    .isInt({ min: 1 })
-    .withMessage('Each update must have a valid product ID'),
-
-  body('updates.*.price')
-    .isFloat({ min: 0 })
-    .withMessage('Each update must have a valid price (minimum 0)'),
-
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-    next();
-  }
-];
-
-const validateAnalyticsQuery = [
-  query('categoryId')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Category ID must be a positive integer'),
-
-  query('subcategoryId')
-    .optional()
-    .isInt({ min: 1 })
-    .withMessage('Subcategory ID must be a positive integer'),
-
-  (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Validation failed',
-        errors: errors.array()
-      });
-    }
-    next();
-  }
-];
+const {
+  validatePriceRestore,
+  validateBulkPrices,
+  validateAnalyticsQuery,
+  validatePriceIncrease,
+  validatePriceDiscount,
+} = require("../../middlewares/validation");
 
 /**
  * @swagger
@@ -172,8 +58,9 @@ const validateAnalyticsQuery = [
  *       404:
  *         description: No products found
  */
-router.patch('/increase',
-  ...adminWithAudit('INCREASE_PRICES'),
+router.patch(
+  "/increase",
+  ...adminWithAudit("INCREASE_PRICES"),
   validatePriceIncrease,
   increaseAllPrices
 );
@@ -182,7 +69,7 @@ router.patch('/increase',
  * @swagger
  * /api/v1/admin/prices/discount:
  *   patch:
- *     summary: Apply discount by percentage
+ *     summary: Apply discount by percentage with automatic date calculation
  *     tags: [Admin - Price Management]
  *     security:
  *       - bearerAuth: []
@@ -194,6 +81,7 @@ router.patch('/increase',
  *             type: object
  *             required:
  *               - percentage
+ *               - duration
  *             properties:
  *               percentage:
  *                 type: number
@@ -201,6 +89,11 @@ router.patch('/increase',
  *                 maximum: 99.99
  *                 description: Discount percentage to apply
  *                 example: 15
+ *               duration:
+ *                 type: integer
+ *                 minimum: 1
+ *                 description: Duration in days for the discount
+ *                 example: 7
  *               categoryId:
  *                 type: integer
  *                 minimum: 1
@@ -212,13 +105,51 @@ router.patch('/increase',
  *     responses:
  *       200:
  *         description: Discount applied successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Successfully applied 15% discount for 7 days to 10 products"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     productsUpdated:
+ *                       type: integer
+ *                       example: 10
+ *                     percentage:
+ *                       type: number
+ *                       example: 15
+ *                     duration:
+ *                       type: integer
+ *                       example: 7
+ *                     salePeriod:
+ *                       type: object
+ *                       properties:
+ *                         startDate:
+ *                           type: string
+ *                           format: date
+ *                           example: "2025-07-15"
+ *                         endDate:
+ *                           type: string
+ *                           format: date
+ *                           example: "2025-07-22"
+ *                         durationDays:
+ *                           type: integer
+ *                           example: 7
  *       400:
  *         description: Invalid input
  *       404:
  *         description: No products found
  */
-router.patch('/discount',
-  ...adminWithAudit('APPLY_DISCOUNT'),
+router.patch(
+  "/discount",
+  ...adminWithAudit("APPLY_DISCOUNT"),
   validatePriceDiscount,
   applyDiscountToAll
 );
@@ -266,8 +197,9 @@ router.patch('/discount',
  *       404:
  *         description: Some products not found
  */
-router.patch('/set-bulk',
-  ...adminWithAudit('BULK_PRICE_UPDATE'),
+router.patch(
+  "/set-bulk",
+  ...adminWithAudit("BULK_PRICE_UPDATE"),
   validateBulkPrices,
   setBulkPrices
 );
@@ -324,10 +256,69 @@ router.patch('/set-bulk',
  *       400:
  *         description: Invalid query parameters
  */
-router.get('/analytics',
-  ...adminWithAudit('VIEW_PRICE_ANALYTICS'),
+router.get(
+  "/analytics",
+  ...adminWithAudit("VIEW_PRICE_ANALYTICS"),
   validateAnalyticsQuery,
   getPriceAnalytics
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/prices/restore:
+ *   patch:
+ *     summary: Restore original prices for products
+ *     tags: [Admin - Price Management]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               categoryId:
+ *                 type: integer
+ *                 minimum: 1
+ *                 description: Optional - Apply only to specific category
+ *               subcategoryId:
+ *                 type: integer
+ *                 minimum: 1
+ *                 description: Optional - Apply only to specific subcategory
+ *     responses:
+ *       200:
+ *         description: Original prices restored successfully
+ *       400:
+ *         description: Invalid input
+ *       404:
+ *         description: No products found with original prices to restore
+ */
+router.patch(
+  "/restore",
+  ...adminWithAudit("RESTORE_PRICES"),
+  validatePriceRestore,
+  restoreOriginalPrices
+);
+
+/**
+ * @swagger
+ * /api/v1/admin/prices/restore-expired:
+ *   patch:
+ *     summary: Restore prices for products with expired sales
+ *     tags: [Admin - Price Management]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Prices restored for expired sales successfully
+ *       404:
+ *         description: No products with expired sales found
+ */
+router.patch(
+  "/restore-expired",
+  ...adminWithAudit("RESTORE_EXPIRED_PRICES"),
+  restoreExpiredSales
 );
 
 module.exports = router;

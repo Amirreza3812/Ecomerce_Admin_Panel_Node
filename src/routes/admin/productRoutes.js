@@ -218,6 +218,21 @@ router.get("/:id", ...adminWithAudit("VIEW_PRODUCT"), getProduct);
  *                 format: decimal
  *                 description: Product price
  *                 example: 4.50
+ *               sale_price:
+ *                 type: number
+ *                 format: decimal
+ *                 description: Optional sale price
+ *                 example: 3.99
+ *               sale_start_date:
+ *                 type: string
+ *                 format: date
+ *                 description: Optional sale start date (YYYY-MM-DD)
+ *                 example: "2025-10-15"
+ *               sale_end_date:
+ *                 type: string
+ *                 format: date
+ *                 description: Optional sale end date (YYYY-MM-DD)
+ *                 example: "2025-10-25"
  *               description:
  *                 type: string
  *                 description: Product description
@@ -310,6 +325,21 @@ router.post(
  *                 format: decimal
  *                 description: Product price
  *                 example: 4.50
+ *               sale_price:
+ *                 type: number
+ *                 format: decimal
+ *                 description: Optional sale price
+ *                 example: 3.99
+ *               sale_start_date:
+ *                 type: string
+ *                 format: date
+ *                 description: Optional sale start date (YYYY-MM-DD)
+ *                 example: "2025-10-15"
+ *               sale_end_date:
+ *                 type: string
+ *                 format: date
+ *                 description: Optional sale end date (YYYY-MM-DD)
+ *                 example: "2025-10-25"
  *               description:
  *                 type: string
  *                 description: Product description

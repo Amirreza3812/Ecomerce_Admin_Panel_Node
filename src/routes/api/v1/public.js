@@ -1,6 +1,8 @@
-const express = require('express');
-const categoryController = require('../../../controllers/api/v1/public/categoryController');
-const productController = require('../../../controllers/api/v1/public/productController');
+const express = require("express");
+const categoryController = require("../../../controllers/api/v1/public/categoryController");
+const productController = require("../../../controllers/api/v1/public/productController");
+const { protect } = require("../../../middlewares/auth");
+const { validateRating } = require("../../../middlewares/validation");
 
 const router = express.Router();
 
@@ -32,7 +34,7 @@ const router = express.Router();
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/categories', categoryController.getAllCategories);
+router.get("/categories", categoryController.getAllCategories);
 
 /**
  * @swagger
@@ -49,7 +51,7 @@ router.get('/categories', categoryController.getAllCategories);
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  */
-router.get('/categories/stats', categoryController.getCategoryStats);
+router.get("/categories/stats", categoryController.getCategoryStats);
 
 /**
  * @swagger
@@ -94,7 +96,7 @@ router.get('/categories/stats', categoryController.getCategoryStats);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/categories/:identifier', categoryController.getCategory);
+router.get("/categories/:identifier", categoryController.getCategory);
 
 /**
  * @swagger
@@ -185,7 +187,71 @@ router.get('/categories/:identifier', categoryController.getCategory);
  *                       items:
  *                         $ref: '#/components/schemas/Product'
  */
-router.get('/products', productController.getAllProducts);
+router.get("/products", productController.getAllProducts);
+
+/**
+ * @swagger
+ * /api/v1/public/products/sale:
+ *   get:
+ *     summary: Get products on sale
+ *     description: Retrieve products currently on sale with discount information
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 12
+ *         description: Number of products per page
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [discount, price_low, price_high, rating, newest, popular]
+ *           default: discount
+ *         description: Sort products by criteria
+ *         example: discount
+ *     responses:
+ *       200:
+ *         description: Sale products retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/PaginatedResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         allOf:
+ *                           - $ref: '#/components/schemas/Product'
+ *                           - type: object
+ *                             properties:
+ *                               is_on_sale:
+ *                                 type: boolean
+ *                                 description: Whether the product is currently on sale
+ *                                 example: true
+ *                               effective_price:
+ *                                 type: number
+ *                                 format: decimal
+ *                                 description: Current price (sale price if on sale, otherwise regular price)
+ *                                 example: 8.99
+ *                               discount_percentage:
+ *                                 type: integer
+ *                                 description: Discount percentage
+ *                                 example: 25
+ */
+router.get("/products/sale", productController.getSaleProducts);
 
 /**
  * @swagger
@@ -218,7 +284,7 @@ router.get('/products', productController.getAllProducts);
  *                       items:
  *                         $ref: '#/components/schemas/Product'
  */
-router.get('/products/featured', productController.getFeaturedProducts);
+router.get("/products/featured", productController.getFeaturedProducts);
 
 /**
  * @swagger
@@ -263,7 +329,7 @@ router.get('/products/featured', productController.getFeaturedProducts);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/products/:identifier', productController.getProduct);
+router.get("/products/:identifier", productController.getProduct);
 
 /**
  * @swagger
@@ -309,6 +375,261 @@ router.get('/products/:identifier', productController.getProduct);
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/products/:id/related', productController.getRelatedProducts);
+router.get("/products/:id/related", productController.getRelatedProducts);
+
+/**
+ * @swagger
+ * /api/v1/public/products/{id}/rate:
+ *   post:
+ *     summary: Rate a product
+ *     description: Submit a rating for a product (1-5 stars)
+ *     tags: [Products, Ratings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Product ID
+ *         example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - rating
+ *             properties:
+ *               rating:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 5
+ *                 description: Rating value (1-5)
+ *                 example: 4
+ *     responses:
+ *       200:
+ *         description: Product rated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         rating:
+ *                           type: integer
+ *                           example: 4
+ *                         productRating:
+ *                           type: object
+ *                           properties:
+ *                             rating:
+ *                               type: number
+ *                               example: 4.2
+ *                             total_reviews:
+ *                               type: integer
+ *                               example: 15
+ *       400:
+ *         description: Invalid rating value
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Product not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.post(
+  "/products/:id/rate",
+  protect,
+  validateRating,
+  productController.rateProduct
+);
+
+/**
+ * @swagger
+ * /api/v1/public/products/{id}/ratings:
+ *   get:
+ *     summary: Get product ratings
+ *     description: Retrieve all ratings for a specific product with pagination
+ *     tags: [Products, Ratings]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Product ID
+ *         example: 1
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 20
+ *           default: 10
+ *         description: Number of ratings per page
+ *     responses:
+ *       200:
+ *         description: Product ratings retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: object
+ *                       properties:
+ *                         productRating:
+ *                           type: object
+ *                           properties:
+ *                             rating:
+ *                               type: number
+ *                               example: 4.2
+ *                             total_reviews:
+ *                               type: integer
+ *                               example: 15
+ *                         distribution:
+ *                           type: object
+ *                           properties:
+ *                             1:
+ *                               type: integer
+ *                               example: 1
+ *                             2:
+ *                               type: integer
+ *                               example: 2
+ *                             3:
+ *                               type: integer
+ *                               example: 3
+ *                             4:
+ *                               type: integer
+ *                               example: 5
+ *                             5:
+ *                               type: integer
+ *                               example: 4
+ *                         ratings:
+ *                           type: array
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: integer
+ *                               rating:
+ *                                 type: integer
+ *                                 example: 4
+ *                               createdAt:
+ *                                 type: string
+ *                                 format: date-time
+ *                               user:
+ *                                 type: object
+ *                                 properties:
+ *                                   id:
+ *                                     type: integer
+ *                                   name:
+ *                                     type: string
+ *                                   avatar:
+ *                                     type: string
+ *                         pagination:
+ *                           type: object
+ *                           properties:
+ *                             page:
+ *                               type: integer
+ *                               example: 1
+ *                             limit:
+ *                               type: integer
+ *                               example: 10
+ *                             total:
+ *                               type: integer
+ *                               example: 15
+ *                             pages:
+ *                               type: integer
+ *                               example: 2
+ *       404:
+ *         description: Product not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.get("/products/:id/ratings", productController.getProductRatings);
+
+/**
+ * @swagger
+ * /api/v1/public/products/top-rated:
+ *   get:
+ *     summary: Get top rated products
+ *     description: Retrieve products with highest ratings
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 20
+ *           default: 10
+ *         description: Number of products to return
+ *       - in: query
+ *         name: minReviews
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 3
+ *         description: Minimum number of reviews a product must have
+ *     responses:
+ *       200:
+ *         description: Top rated products retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         allOf:
+ *                           - $ref: '#/components/schemas/Product'
+ *                           - type: object
+ *                             properties:
+ *                               effective_price:
+ *                                 type: number
+ *                                 format: decimal
+ *                                 description: Current price (sale price if on sale, otherwise regular price)
+ *                                 example: 8.99
+ *                               is_on_sale:
+ *                                 type: boolean
+ *                                 description: Whether the product is currently on sale
+ *                                 example: true
+ *                               discount_percentage:
+ *                                 type: integer
+ *                                 description: Discount percentage
+ *                                 example: 25
+ */
+router.get("/products/top-rated", productController.getTopRatedProducts);
 
 module.exports = router;

@@ -89,7 +89,7 @@ const Order = sequelize.define("Order", {
   tableName: 'orders',
   indexes: [
     { fields: ['user_id'] },
-    { fields: ['order_number'] },
+    // { fields: ['order_number'] },
     { fields: ['status'] },
     { fields: ['payment_status'] },
     { fields: ['order_type'] },

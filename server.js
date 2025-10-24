@@ -6,11 +6,9 @@ const { connectDB, sequelize } = require("./src/config/db");
 const globalErrorHandler = require("./src/middlewares/errorHandler");
 const AppError = require("./src/utils/AppError");
 
-// Import Routes
-// const projectRoutes = require("./routes/publicRoutes"); // Disabled for cafe management
-// const adminRoutes = require("./routes/adminRoutes"); // Disabled for cafe management
-// const authRoutes = require("./routes/authRoutes"); // این دو خط برای روت های قدیمیه پایینن که پایینیا کامنت شدن پس نیازی به اینا نیست
-// const adminsRoutes = require("./routes/adminsRoutes");
+// Import the scheduled job
+require("./src/jobs/priceRestoreJob");
+
 
 // Import New API v1 Routes
 const publicApiRoutes = require("./src/routes/api/v1/public");
@@ -23,7 +21,15 @@ const path = require("path");
 const app = express();
 
 // Global Middlewares
-app.use(cors());
+app.use(
+  cors()
+  //   {
+  //   origin: [
+  //     "http://localhost:8081",
+  //     "http://10.134.4.178:3000",
+  //   ],
+  // }
+);
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
@@ -58,7 +64,6 @@ app.use("/api/v1/admin", adminApiRoutes); // این یه فایله که کل ر
 // Swagger Documentation
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./swagger");
-
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
