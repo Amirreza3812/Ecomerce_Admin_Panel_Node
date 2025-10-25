@@ -9,9 +9,11 @@ const {
   deleteCategory,
   getCategoryStats,
 } = require("../../controllers/api/admin/categoryController");
+const {
+  getCategoryIcons,
+} = require("../../controllers/api/admin/iconController");
 const { adminWithAudit } = require("../../middlewares/adminAuth");
 const { validateCategory } = require("../../middlewares/validation");
-const { upload, uploadMultiple } = require("../../middlewares/upload");
 
 /**
  * @swagger
@@ -29,9 +31,9 @@ const { upload, uploadMultiple } = require("../../middlewares/upload");
  *         description:
  *           type: string
  *           example: "Various coffee drinks and beverages"
- *         image:
+ *         icon:
  *           type: string
- *           example: "https://example.com/coffee.jpg"
+ *           example: "coffee-icon.svg"
  *         status:
  *           type: string
  *           enum: [active, inactive]
@@ -63,9 +65,9 @@ const { upload, uploadMultiple } = require("../../middlewares/upload");
  *         description:
  *           type: string
  *           example: "Strong black coffee"
- *         image:
+ *         icon:
  *           type: string
- *           example: "https://example.com/espresso.jpg"
+ *           example: "espresso-icon.svg"
  *         status:
  *           type: string
  *           enum: [active, inactive]
@@ -73,6 +75,15 @@ const { upload, uploadMultiple } = require("../../middlewares/upload");
  *         sort_order:
  *           type: integer
  *           example: 1
+ *     Icon:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *           example: "coffee-icon.svg"
+ *         url:
+ *           type: string
+ *           example: "http://localhost:3000/icons/category-icons/coffee-icon.svg"
  *     ErrorResponse:
  *       type: object
  *       properties:
@@ -88,6 +99,44 @@ const { upload, uploadMultiple } = require("../../middlewares/upload");
  *       scheme: bearer
  *       bearerFormat: JWT
  */
+
+/**
+ * @swagger
+ * /api/v1/admin/categories/icons:
+ *   get:
+ *     summary: Get all available category icons
+ *     tags: [Admin - Categories]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Category icons retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Icon'
+ *       401:
+ *         description: Unauthorized - admin access required
+ *       403:
+ *         description: Forbidden - Admin role required
+ *       404:
+ *         description: Category icons directory not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get(
+  "/icons",
+  ...adminWithAudit("VIEW_CATEGORY_ICONS"),
+  getCategoryIcons
+);
 
 /**
  * @swagger
@@ -217,7 +266,7 @@ router.get("/:id", ...adminWithAudit("VIEW_CATEGORY"), getCategory);
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             required:
@@ -229,6 +278,9 @@ router.get("/:id", ...adminWithAudit("VIEW_CATEGORY"), getCategory);
  *               description:
  *                 type: string
  *                 example: "Various coffee drinks and beverages"
+ *               icon:
+ *                 type: string
+ *                 example: "coffee-icon.svg"
  *               status:
  *                 type: string
  *                 enum: [active, inactive]
@@ -237,13 +289,28 @@ router.get("/:id", ...adminWithAudit("VIEW_CATEGORY"), getCategory);
  *               sort_order:
  *                 type: integer
  *                 example: 1
- *               image:
- *                 type: string
- *                 format: binary
  *               subcategories:
- *                 type: string
- *                 description: JSON string array of subcategories
- *                 example: '[{"name":"Espresso","description":"Strong black coffee","status":"active","sort_order":1}]'
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                       example: "Espresso"
+ *                     description:
+ *                       type: string
+ *                       example: "Strong black coffee"
+ *                     icon:
+ *                       type: string
+ *                       example: "espresso-icon.svg"
+ *                     status:
+ *                       type: string
+ *                       enum: [active, inactive]
+ *                       default: active
+ *                       example: "active"
+ *                     sort_order:
+ *                       type: integer
+ *                       example: 1
  *     responses:
  *       201:
  *         description: Category created successfully
@@ -270,7 +337,6 @@ router.get("/:id", ...adminWithAudit("VIEW_CATEGORY"), getCategory);
 router.post(
   "/",
   ...adminWithAudit("CREATE_CATEGORY"),
-  require("../../middlewares/upload").uploadCategoryWithSubcategories,
   validateCategory,
   createCategory
 );
@@ -294,7 +360,7 @@ router.post(
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             properties:
@@ -304,6 +370,9 @@ router.post(
  *               description:
  *                 type: string
  *                 example: "Updated description for coffee category"
+ *               icon:
+ *                 type: string
+ *                 example: "coffee-icon-updated.svg"
  *               status:
  *                 type: string
  *                 enum: [active, inactive]
@@ -311,13 +380,30 @@ router.post(
  *               sort_order:
  *                 type: integer
  *                 example: 1
- *               image:
- *                 type: string
- *                 format: binary
  *               subcategories:
- *                 type: string
- *                 description: JSON string array of subcategories
- *                 example: '[{"id":1,"name":"Espresso","description":"Strong black coffee","status":"active","sort_order":1}]'
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: integer
+ *                       example: 1
+ *                     name:
+ *                       type: string
+ *                       example: "Espresso"
+ *                     description:
+ *                       type: string
+ *                       example: "Strong black coffee"
+ *                     icon:
+ *                       type: string
+ *                       example: "espresso-icon.svg"
+ *                     status:
+ *                       type: string
+ *                       enum: [active, inactive]
+ *                       example: "active"
+ *                     sort_order:
+ *                       type: integer
+ *                       example: 1
  *     responses:
  *       200:
  *         description: Category updated successfully
@@ -341,14 +427,13 @@ router.post(
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-// Update category (with file upload support)
 router.put(
   "/:id",
   ...adminWithAudit("UPDATE_CATEGORY"),
-  require("../../middlewares/upload").uploadCategoryWithSubcategories,
   validateCategory,
   updateCategory
 );
+
 /**
  * @swagger
  * /api/v1/admin/categories/{id}:

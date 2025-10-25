@@ -77,6 +77,11 @@ const validateCategory = [
     .isLength({ max: 500 })
     .withMessage("Description must not exceed 500 characters"),
 
+  body("icon")
+    .optional()
+    .isString()
+    .withMessage("Icon must be a string"),
+
   body("status")
     .optional()
     .isIn(["active", "inactive"])
@@ -121,6 +126,11 @@ const validateSubCategory = [
     .trim()
     .isLength({ max: 500 })
     .withMessage("Description must not exceed 500 characters"),
+
+  body("icon")
+    .optional()
+    .isString()
+    .withMessage("Icon must be a string"),
 
   body("status")
     .optional()

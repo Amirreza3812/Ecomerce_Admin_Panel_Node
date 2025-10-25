@@ -4,48 +4,38 @@ const AppError = require("../../../utils/AppError");
 const SubCategory = require("../../../models/entities/SubCategory");
 const Category = require("../../../models/entities/Category");
 const Product = require("../../../models/entities/Product");
-const fs = require('fs');
-const path = require('path');
-
-// Helper function to delete old image
-const deleteImage = (imagePath) => {
-  if (imagePath) {
-    const filename = imagePath.split('/').pop();
-    const fullPath = path.join(__dirname, '../../../uploads', filename);
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath);
-    }
-  }
-};
 
 // Get all subcategories
 const getAllSubCategories = catchAsync(async (req, res, next) => {
   const { categoryId, status } = req.query;
-  
+
   const whereClause = {};
   if (categoryId) whereClause.category_id = categoryId;
   if (status) whereClause.status = status;
-  
+
   const subcategories = await SubCategory.findAll({
     where: whereClause,
     include: [
       {
         model: Category,
         as: "category",
-        attributes: ["id", "name"]
+        attributes: ["id", "name"],
       },
       {
         model: Product,
         as: "products",
-        attributes: ["id", "name", "status"]
-      }
+        attributes: ["id", "name", "status"],
+      },
     ],
-    order: [["sort_order", "ASC"], ["name", "ASC"]]
+    order: [
+      ["sort_order", "ASC"],
+      ["name", "ASC"],
+    ],
   });
 
   res.json({
     success: true,
-    data: subcategories
+    data: subcategories,
   });
 });
 
@@ -58,61 +48,61 @@ const getSubCategory = catchAsync(async (req, res, next) => {
       {
         model: Category,
         as: "category",
-        attributes: ["id", "name"]
+        attributes: ["id", "name"],
       },
       {
         model: Product,
         as: "products",
-        attributes: ["id", "name", "status"]
-      }
-    ]
+        attributes: ["id", "name", "status"],
+      },
+    ],
   });
 
   if (!subcategory) {
-    return next(new AppError('Subcategory not found', 404));
+    return next(new AppError("Subcategory not found", 404));
   }
 
   res.json({
     success: true,
-    data: subcategory
+    data: subcategory,
   });
 });
 
 // Create new subcategory
 const createSubCategory = catchAsync(async (req, res, next) => {
-  const { 
-    category_id, 
-    name, 
-    description, 
-    status = 'active', 
-    sort_order = 0 
+  const {
+    category_id,
+    name,
+    description,
+    icon, // Changed from image to icon
+    status = "active",
+    sort_order = 0,
   } = req.body;
 
   // Check if category exists
   const category = await Category.findByPk(category_id);
   if (!category) {
-    return next(new AppError('Category not found', 404));
+    return next(new AppError("Category not found", 404));
   }
 
   // Check if subcategory with same name already exists in this category
-  const existingSubCategory = await SubCategory.findOne({ 
-    where: { category_id, name } 
+  const existingSubCategory = await SubCategory.findOne({
+    where: { category_id, name },
   });
   if (existingSubCategory) {
-    return next(new AppError('Subcategory with this name already exists in this category', 400));
-  }
-
-  // Handle image upload
-  let image = null;
-  if (req.file) {
-    image = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
+    return next(
+      new AppError(
+        "Subcategory with this name already exists in this category",
+        400
+      )
+    );
   }
 
   const subcategory = await SubCategory.create({
     category_id,
     name,
     description,
-    image,
+    icon, // Changed from image to icon
     status,
     sort_order,
   });
@@ -123,70 +113,70 @@ const createSubCategory = catchAsync(async (req, res, next) => {
       {
         model: Category,
         as: "category",
-        attributes: ["id", "name"]
-      }
-    ]
+        attributes: ["id", "name"],
+      },
+    ],
   });
 
   res.status(201).json({
     success: true,
     message: "Subcategory created successfully",
-    data: createdSubCategory
+    data: createdSubCategory,
   });
 });
 
 // Update subcategory
 const updateSubCategory = catchAsync(async (req, res, next) => {
   const { id } = req.params;
-  const { 
-    category_id, 
-    name, 
-    description, 
-    status, 
-    sort_order 
+  const {
+    category_id,
+    name,
+    description,
+    icon, // Changed from image to icon
+    status,
+    sort_order,
   } = req.body;
 
   const subcategory = await SubCategory.findByPk(id);
   if (!subcategory) {
-    return next(new AppError('Subcategory not found', 404));
+    return next(new AppError("Subcategory not found", 404));
   }
 
   // If category_id is being changed, check if the new category exists
   if (category_id && category_id !== subcategory.category_id) {
     const category = await Category.findByPk(category_id);
     if (!category) {
-      return next(new AppError('Category not found', 404));
+      return next(new AppError("Category not found", 404));
     }
   }
 
   // Check if another subcategory with the same name exists in the same category
-  if (name && (name !== subcategory.name || category_id !== subcategory.category_id)) {
-    const existingSubCategory = await SubCategory.findOne({ 
-      where: { 
-        category_id: category_id || subcategory.category_id, 
-        name 
-      } 
+  if (
+    name &&
+    (name !== subcategory.name || category_id !== subcategory.category_id)
+  ) {
+    const existingSubCategory = await SubCategory.findOne({
+      where: {
+        category_id: category_id || subcategory.category_id,
+        name,
+      },
     });
     if (existingSubCategory) {
-      return next(new AppError('Subcategory with this name already exists in this category', 400));
+      return next(
+        new AppError(
+          "Subcategory with this name already exists in this category",
+          400
+        )
+      );
     }
-  }
-
-  // Handle image upload
-  let image = subcategory.image;
-  if (req.file) {
-    // Delete old image if exists
-    if (subcategory.image) {
-      deleteImage(subcategory.image);
-    }
-    image = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
   }
 
   await subcategory.update({
     category_id: category_id || subcategory.category_id,
     name: name || subcategory.name,
-    description: description !== undefined ? description : subcategory.description,
-    image,
+    description:
+      description !== undefined ? description : subcategory.description,
+    icon: icon !== undefined ? icon : subcategory.icon, // Changed from image to icon
     status: status || subcategory.status,
     sort_order: sort_order !== undefined ? sort_order : subcategory.sort_order,
   });
@@ -197,15 +187,15 @@ const updateSubCategory = catchAsync(async (req, res, next) => {
       {
         model: Category,
         as: "category",
-        attributes: ["id", "name"]
-      }
-    ]
+        attributes: ["id", "name"],
+      },
+    ],
   });
 
   res.json({
     success: true,
     message: "Subcategory updated successfully",
-    data: updatedSubCategory
+    data: updatedSubCategory,
   });
 });
 
@@ -217,30 +207,27 @@ const deleteSubCategory = catchAsync(async (req, res, next) => {
     include: [
       {
         model: Product,
-        as: "products"
-      }
-    ]
+        as: "products",
+      },
+    ],
   });
 
   if (!subcategory) {
-    return next(new AppError('Subcategory not found', 404));
+    return next(new AppError("Subcategory not found", 404));
   }
 
   // Check if subcategory has products
   if (subcategory.products && subcategory.products.length > 0) {
-    return next(new AppError('Cannot delete subcategory with existing products', 400));
-  }
-
-  // Delete subcategory image if exists
-  if (subcategory.image) {
-    deleteImage(subcategory.image);
+    return next(
+      new AppError("Cannot delete subcategory with existing products", 400)
+    );
   }
 
   await subcategory.destroy();
 
   res.json({
     success: true,
-    message: "Subcategory deleted successfully"
+    message: "Subcategory deleted successfully",
   });
 });
 
@@ -250,18 +237,20 @@ const toggleSubCategoryStatus = catchAsync(async (req, res, next) => {
 
   const subcategory = await SubCategory.findByPk(id);
   if (!subcategory) {
-    return next(new AppError('Subcategory not found', 404));
+    return next(new AppError("Subcategory not found", 404));
   }
 
-  const newStatus = subcategory.status === 'active' ? 'inactive' : 'active';
+  const newStatus = subcategory.status === "active" ? "inactive" : "active";
   await subcategory.update({ status: newStatus });
 
   res.json({
     success: true,
     message: `Subcategory ${newStatus}d successfully`,
-    data: subcategory
+    data: subcategory,
   });
 });
+
+
 
 module.exports = {
   getAllSubCategories,
@@ -269,5 +258,5 @@ module.exports = {
   createSubCategory,
   updateSubCategory,
   deleteSubCategory,
-  toggleSubCategoryStatus
+  toggleSubCategoryStatus,
 };

@@ -1,26 +1,10 @@
+// controllers/api/admin/categoryController.js
 const catchAsync = require("../../../utils/catchAsync");
 const AppError = require("../../../utils/AppError");
 const Category = require("../../../models/entities/Category");
 const SubCategory = require("../../../models/entities/SubCategory");
 const Product = require("../../../models/entities/Product");
 const { Op } = require("sequelize");
-const fs = require("fs");
-const path = require("path");
-
-// Helper function to delete old image
-const deleteImage = (imagePath) => {
-  if (imagePath) {
-    try {
-      const filename = imagePath.split("/").pop();
-      const fullPath = path.join(__dirname, "../../../uploads", filename);
-      if (fs.existsSync(fullPath)) {
-        fs.unlinkSync(fullPath);
-      }
-    } catch (error) {
-      console.error("Error deleting image:", error);
-    }
-  }
-};
 
 // Get all categories with subcategories
 const getAllCategories = catchAsync(async (req, res, next) => {
@@ -88,16 +72,9 @@ const createCategory = catchAsync(async (req, res, next) => {
     description,
     status = "active",
     sort_order = 0,
+    icon, // Changed from image to icon
     subcategories,
   } = req.body;
-
-  // Handle image upload
-  let image = null;
-  if (req.files && req.files.image) {
-    image = `${req.protocol}://${req.get("host")}/uploads/${
-      req.files.image.filename
-    }`;
-  }
 
   // Check if category with same name already exists
   const existingCategory = await Category.findOne({ where: { name } });
@@ -109,7 +86,7 @@ const createCategory = catchAsync(async (req, res, next) => {
   const category = await Category.create({
     name,
     description,
-    image,
+    icon, // Changed from image to icon
     status,
     sort_order,
   });
@@ -127,33 +104,20 @@ const createCategory = catchAsync(async (req, res, next) => {
     }
 
     if (Array.isArray(parsedSubcategories) && parsedSubcategories.length > 0) {
-      // FIX: Filter out any subcategory objects that are empty or have no name
+      // Filter out any subcategory objects that are empty or have no name
       const validSubcategories = parsedSubcategories.filter(
         (sub) => sub && sub.name && sub.name.trim() !== ""
       );
 
       if (validSubcategories.length > 0) {
-        const subcategoryData = validSubcategories.map((sub, index) => {
-          let subcategoryImage = sub.image || null;
-
-          if (req.files) {
-            const imageFieldName = `subcategoryImage_${index}`;
-            if (req.files[imageFieldName]) {
-              subcategoryImage = `${req.protocol}://${req.get(
-                "host"
-              )}/uploads/${req.files[imageFieldName].filename}`;
-            }
-          }
-
-          return {
-            category_id: category.id,
-            name: sub.name,
-            description: sub.description || null,
-            image: subcategoryImage,
-            status: sub.status || "active",
-            sort_order: sub.sort_order || 0,
-          };
-        });
+        const subcategoryData = validSubcategories.map((sub) => ({
+          category_id: category.id,
+          name: sub.name,
+          description: sub.description || null,
+          icon: sub.icon || null, // Changed from image to icon
+          status: sub.status || "active",
+          sort_order: sub.sort_order || 0,
+        }));
 
         await SubCategory.bulkCreate(subcategoryData);
       }
@@ -180,7 +144,8 @@ const createCategory = catchAsync(async (req, res, next) => {
 // Update category with subcategories
 const updateCategory = catchAsync(async (req, res, next) => {
   const { id } = req.params;
-  const { name, description, status, sort_order, subcategories } = req.body;
+  const { name, description, status, sort_order, icon, subcategories } =
+    req.body; // Changed from image to icon
 
   const category = await Category.findByPk(id);
   if (!category) {
@@ -195,22 +160,11 @@ const updateCategory = catchAsync(async (req, res, next) => {
     }
   }
 
-  // Handle image upload
-  let image = category.image;
-  if (req.files && req.files.image) {
-    if (category.image) {
-      deleteImage(category.image);
-    }
-    image = `${req.protocol}://${req.get("host")}/uploads/${
-      req.files.image.filename
-    }`;
-  }
-
   // Update category
   await category.update({
     name: name || category.name,
     description: description !== undefined ? description : category.description,
-    image,
+    icon: icon !== undefined ? icon : category.icon, // Changed from image to icon
     status: status || category.status,
     sort_order: sort_order !== undefined ? sort_order : category.sort_order,
   });
@@ -243,20 +197,10 @@ const updateCategory = catchAsync(async (req, res, next) => {
         });
       }
 
-      parsedSubcategories.forEach((sub, index) => {
-        // FIX: Skip if the subcategory data is invalid (e.g., empty object from frontend)
+      parsedSubcategories.forEach((sub) => {
+        // Skip if the subcategory data is invalid (e.g., empty object from frontend)
         if (!sub || !sub.name || sub.name.trim() === "") {
           return; // Skip this iteration
-        }
-
-        let subcategoryImage = sub.image || null;
-        if (req.files) {
-          const imageFieldName = `subcategoryImage_${index}`;
-          if (req.files[imageFieldName]) {
-            subcategoryImage = `${req.protocol}://${req.get("host")}/uploads/${
-              req.files[imageFieldName].filename
-            }`;
-          }
         }
 
         if (sub.id) {
@@ -265,7 +209,7 @@ const updateCategory = catchAsync(async (req, res, next) => {
             {
               name: sub.name,
               description: sub.description,
-              image: subcategoryImage,
+              icon: sub.icon, // Changed from image to icon
               status: sub.status,
               sort_order: sub.sort_order,
             },
@@ -279,7 +223,7 @@ const updateCategory = catchAsync(async (req, res, next) => {
             category_id: id,
             name: sub.name,
             description: sub.description,
-            image: subcategoryImage,
+            icon: sub.icon, // Changed from image to icon
             status: sub.status,
             sort_order: sub.sort_order,
           });
@@ -321,10 +265,6 @@ const deleteCategory = catchAsync(async (req, res, next) => {
     return next(
       new AppError("Cannot delete category with existing subcategories", 400)
     );
-  }
-
-  if (category.image) {
-    deleteImage(category.image);
   }
 
   await category.destroy();

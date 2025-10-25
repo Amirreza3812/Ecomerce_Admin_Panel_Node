@@ -8,6 +8,183 @@ const router = express.Router();
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Category:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           example: 1
+ *         name:
+ *           type: string
+ *           example: "Coffee"
+ *         description:
+ *           type: string
+ *           example: "Various coffee drinks and beverages"
+ *         icon:
+ *           type: string
+ *           example: "coffee-icon.svg"
+ *         status:
+ *           type: string
+ *           enum: [active, inactive]
+ *           example: "active"
+ *         sort_order:
+ *           type: integer
+ *           example: 1
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2023-10-06T16:47:26.204Z"
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2023-10-06T16:47:26.204Z"
+ *         subcategories:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/SubCategory'
+ *     SubCategory:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           example: 1
+ *         category_id:
+ *           type: integer
+ *           example: 1
+ *         name:
+ *           type: string
+ *           example: "Espresso"
+ *         description:
+ *           type: string
+ *           example: "Strong black coffee"
+ *         icon:
+ *           type: string
+ *           example: "espresso-icon.svg"
+ *         status:
+ *           type: string
+ *           enum: [active, inactive]
+ *           example: "active"
+ *         sort_order:
+ *           type: integer
+ *           example: 1
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2023-10-06T16:47:26.204Z"
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2023-10-06T16:47:26.204Z"
+ *         products:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Product'
+ *     Product:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *           example: 1
+ *         name:
+ *           type: string
+ *           example: "Espresso"
+ *         description:
+ *           type: string
+ *           example: "Strong black coffee"
+ *         price:
+ *           type: number
+ *           format: decimal
+ *           example: 3.99
+ *         sale_price:
+ *           type: number
+ *           format: decimal
+ *           example: 2.99
+ *         image:
+ *           type: string
+ *           example: "https://example.com/espresso.jpg"
+ *         rating:
+ *           type: number
+ *           example: 4.5
+ *         total_reviews:
+ *           type: integer
+ *           example: 15
+ *         is_featured:
+ *           type: boolean
+ *           example: true
+ *         status:
+ *           type: string
+ *           enum: [active, inactive]
+ *           example: "active"
+ *         subcategory_id:
+ *           type: integer
+ *           example: 1
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2023-10-06T16:47:26.204Z"
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ *           example: "2023-10-06T16:47:26.204Z"
+ *     ApiResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: true
+ *         message:
+ *           type: string
+ *           example: "Operation successful"
+ *         data:
+ *           type: object
+ *     PaginatedResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: true
+ *         message:
+ *           type: string
+ *           example: "Operation successful"
+ *         data:
+ *           type: array
+ *           items:
+ *             type: object
+ *         pagination:
+ *           type: object
+ *           properties:
+ *             page:
+ *               type: integer
+ *               example: 1
+ *             limit:
+ *               type: integer
+ *               example: 12
+ *             total:
+ *               type: integer
+ *               example: 50
+ *             pages:
+ *               type: integer
+ *               example: 5
+ *     ErrorResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: false
+ *         error:
+ *           type: string
+ *           example: "Error message"
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ */
+
+/**
+ * @swagger
  * /api/v1/public/categories:
  *   get:
  *     summary: Get all active categories
@@ -51,8 +228,97 @@ router.get("/categories", categoryController.getAllCategories);
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  */
+
 router.get("/categories/stats", categoryController.getCategoryStats);
 
+/**
+ * @swagger
+ * /api/v1/public/categories/icons:
+ *   get:
+ *     summary: Get all available category icons
+ *     description: Retrieve all available category icons for public use
+ *     tags: [Categories]
+ *     responses:
+ *       200:
+ *         description: Category icons retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           name:
+ *                             type: string
+ *                             example: "coffee-icon.svg"
+ *                           url:
+ *                             type: string
+ *                             example: "http://localhost:3000/icons/category-icons/coffee-icon.svg"
+ *       404:
+ *         description: Category icons directory not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.get("/categories/icons", categoryController.getCategoryIcons);
+
+
+/**
+ * @swagger
+ * /api/v1/public/subcategories/icons:
+ *   get:
+ *     summary: Get all available subcategory icons
+ *     description: Retrieve all available subcategory icons for public use
+ *     tags: [Categories]
+ *     responses:
+ *       200:
+ *         description: Subcategory icons retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               allOf:
+ *                 - $ref: '#/components/schemas/ApiResponse'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           name:
+ *                             type: string
+ *                             example: "espresso-icon.svg"
+ *                           url:
+ *                             type: string
+ *                             example: "http://localhost:3000/icons/subcategory-icons/espresso-icon.svg"
+ *       404:
+ *         description: Subcategory icons directory not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ */
+router.get("/subcategories/icons", categoryController.getSubCategoryIcons);
+
+// Category routes with parameters - must come after static routes
 /**
  * @swagger
  * /api/v1/public/categories/{identifier}:
@@ -98,6 +364,7 @@ router.get("/categories/stats", categoryController.getCategoryStats);
  */
 router.get("/categories/:identifier", categoryController.getCategory);
 
+// Product routes
 /**
  * @swagger
  * /api/v1/public/products:

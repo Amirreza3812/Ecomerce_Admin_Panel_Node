@@ -1,5 +1,5 @@
 // routes/admin/subcategories.js
-const express = require('express');
+const express = require("express");
 const router = express.Router();
 const {
   getAllSubCategories,
@@ -7,12 +7,13 @@ const {
   createSubCategory,
   updateSubCategory,
   deleteSubCategory,
-  toggleSubCategoryStatus
-} = require('../../controllers/api/admin/subcategoryController');
-
-const { adminWithAudit } = require('../../middlewares/adminAuth');
-const { validateSubCategory } = require('../../middlewares/validation');
-const {upload} = require('../../middlewares/upload');
+  toggleSubCategoryStatus,
+} = require("../../controllers/api/admin/subcategoryController");
+const {
+  getSubCategoryIcons,
+} = require("../../controllers/api/admin/iconController");
+const { adminWithAudit } = require("../../middlewares/adminAuth");
+const { validateSubCategory } = require("../../middlewares/validation");
 
 /**
  * @swagger
@@ -33,9 +34,9 @@ const {upload} = require('../../middlewares/upload');
  *         description:
  *           type: string
  *           example: "Strong black coffee"
- *         image:
+ *         icon:
  *           type: string
- *           example: "https://example.com/espresso.jpg"
+ *           example: "espresso-icon.svg"
  *         status:
  *           type: string
  *           enum: [active, inactive]
@@ -53,12 +54,68 @@ const {upload} = require('../../middlewares/upload');
  *           example: "2023-10-06T16:47:26.204Z"
  *         category:
  *           $ref: '#/components/schemas/Category'
+ *     Icon:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *           example: "espresso-icon.svg"
+ *         url:
+ *           type: string
+ *           example: "http://localhost:3000/icons/subcategory-icons/espresso-icon.svg"
+ *     ErrorResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: false
+ *         error:
+ *           type: string
+ *           example: "Error message"
  *   securitySchemes:
  *     bearerAuth:
  *       type: http
  *       scheme: bearer
  *       bearerFormat: JWT
  */
+
+/**
+ * @swagger
+ * /api/v1/admin/subcategories/icons:
+ *   get:
+ *     summary: Get all available subcategory icons
+ *     tags: [Admin - SubCategories]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Subcategory icons retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Icon'
+ *       401:
+ *         description: Unauthorized - admin access required
+ *       403:
+ *         description: Forbidden - Admin role required
+ *       404:
+ *         description: Subcategory icons directory not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get(
+  "/icons",
+  ...adminWithAudit("VIEW_SUBCATEGORY_ICONS"),
+  getSubCategoryIcons
+);
 
 /**
  * @swagger
@@ -102,10 +159,7 @@ const {upload} = require('../../middlewares/upload');
  *       500:
  *         description: Internal server error
  */
-router.get('/',
-  ...adminWithAudit('VIEW_SUBCATEGORIES'),
-  getAllSubCategories
-);
+router.get("/", ...adminWithAudit("VIEW_SUBCATEGORIES"), getAllSubCategories);
 
 /**
  * @swagger
@@ -143,10 +197,7 @@ router.get('/',
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get('/:id',
-  ...adminWithAudit('VIEW_SUBCATEGORY'),
-  getSubCategory
-);
+router.get("/:id", ...adminWithAudit("VIEW_SUBCATEGORY"), getSubCategory);
 
 /**
  * @swagger
@@ -159,7 +210,7 @@ router.get('/:id',
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             required:
@@ -175,6 +226,9 @@ router.get('/:id',
  *               description:
  *                 type: string
  *                 example: "Strong black coffee"
+ *               icon:
+ *                 type: string
+ *                 example: "espresso-icon.svg"
  *               status:
  *                 type: string
  *                 enum: [active, inactive]
@@ -183,9 +237,6 @@ router.get('/:id',
  *               sort_order:
  *                 type: integer
  *                 example: 1
- *               image:
- *                 type: string
- *                 format: binary
  *     responses:
  *       201:
  *         description: Subcategory created successfully
@@ -209,9 +260,9 @@ router.get('/:id',
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post('/',
-  ...adminWithAudit('CREATE_SUBCATEGORY'),
-  upload.single('image'),
+router.post(
+  "/",
+  ...adminWithAudit("CREATE_SUBCATEGORY"),
   validateSubCategory,
   createSubCategory
 );
@@ -235,7 +286,7 @@ router.post('/',
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             properties:
@@ -248,6 +299,9 @@ router.post('/',
  *               description:
  *                 type: string
  *                 example: "Updated description for espresso"
+ *               icon:
+ *                 type: string
+ *                 example: "espresso-icon-updated.svg"
  *               status:
  *                 type: string
  *                 enum: [active, inactive]
@@ -255,9 +309,6 @@ router.post('/',
  *               sort_order:
  *                 type: integer
  *                 example: 1
- *               image:
- *                 type: string
- *                 format: binary
  *     responses:
  *       200:
  *         description: Subcategory updated successfully
@@ -281,9 +332,9 @@ router.post('/',
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.put('/:id',
-  ...adminWithAudit('UPDATE_SUBCATEGORY'),
-  upload.single('image'),
+router.put(
+  "/:id",
+  ...adminWithAudit("UPDATE_SUBCATEGORY"),
   validateSubCategory,
   updateSubCategory
 );
@@ -331,8 +382,9 @@ router.put('/:id',
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.delete('/:id',
-  ...adminWithAudit('DELETE_SUBCATEGORY'),
+router.delete(
+  "/:id",
+  ...adminWithAudit("DELETE_SUBCATEGORY"),
   deleteSubCategory
 );
 
@@ -375,8 +427,9 @@ router.delete('/:id',
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.patch('/:id/toggle-status',
-  ...adminWithAudit('UPDATE_SUBCATEGORY'),
+router.patch(
+  "/:id/toggle-status",
+  ...adminWithAudit("UPDATE_SUBCATEGORY"),
   toggleSubCategoryStatus
 );
 

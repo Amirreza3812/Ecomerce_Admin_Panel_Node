@@ -33,6 +33,7 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use('/icons', express.static(path.join(__dirname, 'icons')));
 
 // Security Headers
 app.use((req, res, next) => {

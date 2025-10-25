@@ -101,9 +101,9 @@ const options = {
               type: "string",
               example: "Various coffee drinks and beverages",
             },
-            image: {
+            icon: {
               type: "string",
-              example: "https://example.com/coffee.jpg",
+              example: "coffee-icon.svg",
             },
             status: {
               type: "string",
@@ -125,9 +125,9 @@ const options = {
             category_id: { type: "integer", example: 1 },
             name: { type: "string", example: "Hot Coffee" },
             description: { type: "string", example: "Hot coffee beverages" },
-            image: {
+            icon: {
               type: "string",
-              example: "https://example.com/hot-coffee.jpg",
+              example: "hot-coffee.svg",
             },
             status: {
               type: "string",
