@@ -144,8 +144,7 @@ const createCategory = catchAsync(async (req, res, next) => {
 // Update category with subcategories
 const updateCategory = catchAsync(async (req, res, next) => {
   const { id } = req.params;
-  const { name, description, status, sort_order, icon, subcategories } =
-    req.body; // Changed from image to icon
+  const { name, description, status, sort_order, icon, subcategories } = req.body;
 
   const category = await Category.findByPk(id);
   if (!category) {
@@ -160,14 +159,16 @@ const updateCategory = catchAsync(async (req, res, next) => {
     }
   }
 
+  // Only update fields that are explicitly provided in the request
+  const updateData = {};
+  if (name !== undefined) updateData.name = name;
+  if (description !== undefined) updateData.description = description;
+  if (icon !== undefined) updateData.icon = icon;
+  if (status !== undefined) updateData.status = status;
+  if (sort_order !== undefined) updateData.sort_order = sort_order;
+
   // Update category
-  await category.update({
-    name: name || category.name,
-    description: description !== undefined ? description : category.description,
-    icon: icon !== undefined ? icon : category.icon, // Changed from image to icon
-    status: status || category.status,
-    sort_order: sort_order !== undefined ? sort_order : category.sort_order,
-  });
+  await category.update(updateData);
 
   // Handle subcategories if provided
   if (subcategories !== undefined) {
@@ -197,38 +198,36 @@ const updateCategory = catchAsync(async (req, res, next) => {
         });
       }
 
-      parsedSubcategories.forEach((sub) => {
-        // Skip if the subcategory data is invalid (e.g., empty object from frontend)
-        if (!sub || !sub.name || sub.name.trim() === "") {
-          return; // Skip this iteration
-        }
+      // Use Promise.all for better performance
+      await Promise.all(
+        parsedSubcategories.map(async (sub) => {
+          // Skip if the subcategory data is invalid (e.g., empty object from frontend)
+          if (!sub || !sub.name || sub.name.trim() === "") {
+            return; // Skip this iteration
+          }
 
-        if (sub.id) {
-          // Update existing subcategory
-          SubCategory.update(
-            {
-              name: sub.name,
-              description: sub.description,
-              icon: sub.icon, // Changed from image to icon
-              status: sub.status,
-              sort_order: sub.sort_order,
-            },
-            {
-              where: { id: sub.id, category_id: id },
-            }
-          );
-        } else {
-          // Create new subcategory
-          SubCategory.create({
-            category_id: id,
+          const subUpdateData = {
             name: sub.name,
             description: sub.description,
-            icon: sub.icon, // Changed from image to icon
+            icon: sub.icon,
             status: sub.status,
             sort_order: sub.sort_order,
-          });
-        }
-      });
+          };
+
+          if (sub.id) {
+            // Update existing subcategory
+            await SubCategory.update(subUpdateData, {
+              where: { id: sub.id, category_id: id },
+            });
+          } else {
+            // Create new subcategory
+            await SubCategory.create({
+              category_id: id,
+              ...subUpdateData,
+            });
+          }
+        })
+      );
     }
   }
 

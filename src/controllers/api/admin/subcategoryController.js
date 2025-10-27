@@ -128,14 +128,7 @@ const createSubCategory = catchAsync(async (req, res, next) => {
 // Update subcategory
 const updateSubCategory = catchAsync(async (req, res, next) => {
   const { id } = req.params;
-  const {
-    category_id,
-    name,
-    description,
-    icon, // Changed from image to icon
-    status,
-    sort_order,
-  } = req.body;
+  const { category_id, name, description, icon, status, sort_order } = req.body;
 
   const subcategory = await SubCategory.findByPk(id);
   if (!subcategory) {
@@ -171,15 +164,16 @@ const updateSubCategory = catchAsync(async (req, res, next) => {
     }
   }
 
-  await subcategory.update({
-    category_id: category_id || subcategory.category_id,
-    name: name || subcategory.name,
-    description:
-      description !== undefined ? description : subcategory.description,
-    icon: icon !== undefined ? icon : subcategory.icon, // Changed from image to icon
-    status: status || subcategory.status,
-    sort_order: sort_order !== undefined ? sort_order : subcategory.sort_order,
-  });
+  // Only update fields that are explicitly provided in the request
+  const updateData = {};
+  if (category_id !== undefined) updateData.category_id = category_id;
+  if (name !== undefined) updateData.name = name;
+  if (description !== undefined) updateData.description = description;
+  if (icon !== undefined) updateData.icon = icon;
+  if (status !== undefined) updateData.status = status;
+  if (sort_order !== undefined) updateData.sort_order = sort_order;
+
+  await subcategory.update(updateData);
 
   // Fetch the updated subcategory with category
   const updatedSubCategory = await SubCategory.findByPk(id, {
@@ -249,8 +243,6 @@ const toggleSubCategoryStatus = catchAsync(async (req, res, next) => {
     data: subcategory,
   });
 });
-
-
 
 module.exports = {
   getAllSubCategories,
