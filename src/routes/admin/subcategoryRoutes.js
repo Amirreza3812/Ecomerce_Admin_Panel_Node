@@ -13,7 +13,7 @@ const {
   getSubCategoryIcons,
 } = require("../../controllers/api/admin/iconController");
 const { adminWithAudit } = require("../../middlewares/adminAuth");
-const { validateSubCategory } = require("../../middlewares/validation");
+const { validateSubCategory, validateSubCategoryPatch } = require("../../middlewares/validation");
 
 /**
  * @swagger
@@ -270,7 +270,7 @@ router.post(
 /**
  * @swagger
  * /api/v1/admin/subcategories/{id}:
- *   put:
+ *   patch:
  *     summary: Update subcategory (Admin)
  *     tags: [Admin - SubCategories]
  *     security:
@@ -332,10 +332,10 @@ router.post(
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.put(
+router.patch(
   "/:id",
   ...adminWithAudit("UPDATE_SUBCATEGORY"),
-  validateSubCategory,
+  validateSubCategoryPatch,
   updateSubCategory
 );
 

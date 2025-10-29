@@ -110,6 +110,53 @@ const validateCategory = [
   handleValidationErrors,
 ];
 
+// Category Patch Validation (for partial updates)
+const validateCategoryPatch = [
+  body("name")
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage("Category name must be between 2 and 50 characters"),
+
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Description must not exceed 500 characters"),
+
+  body("icon")
+    .optional()
+    .isString()
+    .withMessage("Icon must be a string"),
+
+  body("status")
+    .optional()
+    .isIn(["active", "inactive"])
+    .withMessage("Status must be either active or inactive"),
+
+  body("sort_order")
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage("Sort order must be a non-negative integer"),
+
+  // Validate subcategories array if provided
+  body("subcategories")
+    .optional()
+    .custom((value) => {
+      try {
+        // If subcategories is a string, try to parse it as JSON
+        if (typeof value === "string") {
+          JSON.parse(value);
+        }
+        return true;
+      } catch (e) {
+        throw new Error("Subcategories must be a valid JSON array");
+      }
+    }),
+
+  handleValidationErrors,
+];
+
 // SubCategory Validation
 const validateSubCategory = [
   body("category_id")
@@ -117,6 +164,43 @@ const validateSubCategory = [
     .withMessage("Please provide a valid category ID"),
 
   body("name")
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage("Subcategory name must be between 2 and 50 characters"),
+
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage("Description must not exceed 500 characters"),
+
+  body("icon")
+    .optional()
+    .isString()
+    .withMessage("Icon must be a string"),
+
+  body("status")
+    .optional()
+    .isIn(["active", "inactive"])
+    .withMessage("Status must be either active or inactive"),
+
+  body("sort_order")
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage("Sort order must be a non-negative integer"),
+
+  handleValidationErrors,
+];
+
+// SubCategory Patch Validation (for partial updates)
+const validateSubCategoryPatch = [
+  body("category_id")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Please provide a valid category ID"),
+
+  body("name")
+    .optional()
     .trim()
     .isLength({ min: 2, max: 50 })
     .withMessage("Subcategory name must be between 2 and 50 characters"),
@@ -193,6 +277,63 @@ const validateProduct = [
     .withMessage("Stock must be a non-negative integer"),
 
   body("subcategory_id")
+    .isInt({ min: 1 })
+    .withMessage("Please provide a valid subcategory ID"),
+
+  handleValidationErrors,
+];
+
+// Product Patch Validation (for partial updates)
+const validateProductPatch = [
+  body("name")
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage("Product name must be between 2 and 100 characters"),
+
+  body("description")
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage("Description must not exceed 1000 characters"),
+
+  body("price")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Price must be a positive number"),
+
+  body("sale_price")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("Sale price must be a positive number"),
+
+  body("sale_start_date")
+    .optional()
+    .isISO8601()
+    .withMessage("Sale start date must be a valid date (YYYY-MM-DD)"),
+
+  body("sale_end_date")
+    .optional()
+    .isISO8601()
+    .withMessage("Sale end date must be a valid date (YYYY-MM-DD)")
+    .custom((value, { req }) => {
+      if (
+        value &&
+        req.body.sale_start_date &&
+        new Date(value) <= new Date(req.body.sale_start_date)
+      ) {
+        throw new Error("Sale end date must be after sale start date");
+      }
+      return true;
+    }),
+
+  body("stock")
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage("Stock must be a non-negative integer"),
+
+  body("subcategory_id")
+    .optional()
     .isInt({ min: 1 })
     .withMessage("Please provide a valid subcategory ID"),
 
@@ -420,8 +561,11 @@ module.exports = {
   validateUserRegistration,
   validateUserLogin,
   validateCategory,
+  validateCategoryPatch,
   validateSubCategory,
+  validateSubCategoryPatch,
   validateProduct,
+  validateProductPatch,
   validateComment,
   validateOrder,
   validatePriceDiscount,

@@ -74,7 +74,7 @@ const createSubCategory = catchAsync(async (req, res, next) => {
     category_id,
     name,
     description,
-    icon, // Changed from image to icon
+    icon,
     status = "active",
     sort_order = 0,
   } = req.body;
@@ -102,7 +102,7 @@ const createSubCategory = catchAsync(async (req, res, next) => {
     category_id,
     name,
     description,
-    icon, // Changed from image to icon
+    icon,
     status,
     sort_order,
   });
@@ -125,7 +125,7 @@ const createSubCategory = catchAsync(async (req, res, next) => {
   });
 });
 
-// Update subcategory
+// Update subcategory (PATCH)
 const updateSubCategory = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const { category_id, name, description, icon, status, sort_order } = req.body;

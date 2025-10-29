@@ -1,3 +1,4 @@
+// controllers/api/admin/productController.js
 const catchAsync = require("../../../utils/catchAsync");
 const AppError = require("../../../utils/AppError");
 const Product = require("../../../models/entities/Product");
@@ -36,7 +37,6 @@ const getAllProducts = catchAsync(async (req, res) => {
     order: [["createdAt", "DESC"]],
   });
 
-  // --- MODIFICATION START ---
   // Map over the products to add category_id as a top-level property
   const formattedProducts = products.map((product) => {
     const productData = product.toJSON(); // Convert Sequelize instance to plain object
@@ -47,7 +47,6 @@ const getAllProducts = catchAsync(async (req, res) => {
         : null,
     };
   });
-  // --- MODIFICATION END ---
 
   res.json({
     success: true,
@@ -79,7 +78,6 @@ const getProduct = catchAsync(async (req, res, next) => {
     return next(new AppError("Product not found", 404));
   }
 
-  // --- MODIFICATION START ---
   // Add category_id as a top-level property to the single product object
   const productData = product.toJSON();
   const formattedProduct = {
@@ -88,7 +86,6 @@ const getProduct = catchAsync(async (req, res, next) => {
       ? productData.subcategory.category_id
       : null,
   };
-  // --- MODIFICATION END ---
 
   res.json({
     success: true,
@@ -103,9 +100,9 @@ const createProduct = catchAsync(async (req, res, next) => {
     subcategory_id,
     name,
     price,
-    sale_price, // <-- NEW
-    sale_start_date, // <-- NEW
-    sale_end_date, // <-- NEW
+    sale_price,
+    sale_start_date,
+    sale_end_date,
     description,
     ingredients,
     stock,
@@ -134,9 +131,9 @@ const createProduct = catchAsync(async (req, res, next) => {
     subcategory_id,
     name,
     price,
-    sale_price, // <-- NEW
-    sale_start_date, // <-- NEW
-    sale_end_date, // <-- NEW
+    sale_price,
+    sale_start_date,
+    sale_end_date,
     description,
     image,
     ingredients,
@@ -154,7 +151,6 @@ const createProduct = catchAsync(async (req, res, next) => {
     ],
   });
 
-  // --- MODIFICATION START ---
   // Also format the response for the newly created product
   const productData = newProduct.toJSON();
   const formattedNewProduct = {
@@ -163,7 +159,6 @@ const createProduct = catchAsync(async (req, res, next) => {
       ? productData.subcategory.category_id
       : null,
   };
-  // --- MODIFICATION END ---
 
   res.status(201).json({
     success: true,
@@ -172,7 +167,7 @@ const createProduct = catchAsync(async (req, res, next) => {
   });
 });
 
-// Update product
+// Update product (PATCH)
 const updateProduct = catchAsync(async (req, res, next) => {
   const product = await Product.findByPk(req.params.id);
 
@@ -185,9 +180,9 @@ const updateProduct = catchAsync(async (req, res, next) => {
     subcategory_id,
     name,
     price,
-    sale_price, // <-- NEW
-    sale_start_date, // <-- NEW
-    sale_end_date, // <-- NEW
+    sale_price,
+    sale_start_date,
+    sale_end_date,
     description,
     ingredients,
     stock,
@@ -219,21 +214,21 @@ const updateProduct = catchAsync(async (req, res, next) => {
     image = `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`;
   }
 
-  await product.update({
-    subcategory_id: subcategory_id || product.subcategory_id,
-    name: name || product.name,
-    price: price || product.price,
-    sale_price: sale_price !== undefined ? sale_price : product.sale_price, // <-- NEW
-    sale_start_date:
-      sale_start_date !== undefined ? sale_start_date : product.sale_start_date, // <-- NEW
-    sale_end_date:
-      sale_end_date !== undefined ? sale_end_date : product.sale_end_date, // <-- NEW
-    description: description || product.description,
-    image,
-    ingredients: ingredients || product.ingredients,
-    stock: stock !== undefined ? stock : product.stock,
-    status: status || product.status,
-  });
+  // Only update fields that are explicitly provided in the request
+  const updateData = {};
+  if (subcategory_id !== undefined) updateData.subcategory_id = subcategory_id;
+  if (name !== undefined) updateData.name = name;
+  if (price !== undefined) updateData.price = price;
+  if (sale_price !== undefined) updateData.sale_price = sale_price;
+  if (sale_start_date !== undefined) updateData.sale_start_date = sale_start_date;
+  if (sale_end_date !== undefined) updateData.sale_end_date = sale_end_date;
+  if (description !== undefined) updateData.description = description;
+  if (image !== undefined) updateData.image = image;
+  if (ingredients !== undefined) updateData.ingredients = ingredients;
+  if (stock !== undefined) updateData.stock = stock;
+  if (status !== undefined) updateData.status = status;
+
+  await product.update(updateData);
 
   const updatedProduct = await Product.findByPk(product.id, {
     include: [
@@ -245,7 +240,6 @@ const updateProduct = catchAsync(async (req, res, next) => {
     ],
   });
 
-  // --- MODIFICATION START ---
   // Also format the response for the updated product
   const productData = updatedProduct.toJSON();
   const formattedUpdatedProduct = {
@@ -254,7 +248,6 @@ const updateProduct = catchAsync(async (req, res, next) => {
       ? productData.subcategory.category_id
       : null,
   };
-  // --- MODIFICATION END ---
 
   res.json({
     success: true,

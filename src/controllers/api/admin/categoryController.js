@@ -72,7 +72,7 @@ const createCategory = catchAsync(async (req, res, next) => {
     description,
     status = "active",
     sort_order = 0,
-    icon, // Changed from image to icon
+    icon,
     subcategories,
   } = req.body;
 
@@ -86,7 +86,7 @@ const createCategory = catchAsync(async (req, res, next) => {
   const category = await Category.create({
     name,
     description,
-    icon, // Changed from image to icon
+    icon,
     status,
     sort_order,
   });
@@ -104,7 +104,6 @@ const createCategory = catchAsync(async (req, res, next) => {
     }
 
     if (Array.isArray(parsedSubcategories) && parsedSubcategories.length > 0) {
-      // Filter out any subcategory objects that are empty or have no name
       const validSubcategories = parsedSubcategories.filter(
         (sub) => sub && sub.name && sub.name.trim() !== ""
       );
@@ -114,7 +113,7 @@ const createCategory = catchAsync(async (req, res, next) => {
           category_id: category.id,
           name: sub.name,
           description: sub.description || null,
-          icon: sub.icon || null, // Changed from image to icon
+          icon: sub.icon || null,
           status: sub.status || "active",
           sort_order: sub.sort_order || 0,
         }));
@@ -141,12 +140,21 @@ const createCategory = catchAsync(async (req, res, next) => {
   });
 });
 
-// Update category with subcategories
+// Update category with subcategories (PATCH)
 const updateCategory = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const { name, description, status, sort_order, icon, subcategories } = req.body;
 
-  const category = await Category.findByPk(id);
+  const category = await Category.findByPk(id, {
+    include: [
+      {
+        model: SubCategory,
+        as: "subcategories",
+        attributes: ["id", "name", "description", "icon", "status", "sort_order"],
+      },
+    ],
+  });
+
   if (!category) {
     return next(new AppError("Category not found", 404));
   }
@@ -170,8 +178,8 @@ const updateCategory = catchAsync(async (req, res, next) => {
   // Update category
   await category.update(updateData);
 
-  // Handle subcategories if provided
-  if (subcategories !== undefined) {
+  // Handle subcategories ONLY if explicitly provided in the request
+  if (subcategories !== undefined && subcategories !== null) {
     let parsedSubcategories = subcategories;
 
     if (typeof subcategories === "string") {
@@ -183,41 +191,50 @@ const updateCategory = catchAsync(async (req, res, next) => {
     }
 
     if (Array.isArray(parsedSubcategories)) {
-      const existingSubcategories = await SubCategory.findAll({
-        where: { category_id: id },
-      });
+      const existingSubcategories = category.subcategories || [];
       const existingIds = existingSubcategories.map((sub) => sub.id);
+      
+      // Get IDs of subcategories that are coming in the request
       const incomingIds = parsedSubcategories
-        .filter((sub) => sub.id) // Filter out items without an ID
+        .filter((sub) => sub && sub.id) // Filter out items without an ID
         .map((sub) => sub.id);
 
+      // Find subcategories to delete (exist but not in incoming list)
       const toDelete = existingIds.filter((id) => !incomingIds.includes(id));
+      
+      // Delete subcategories that are no longer in the list
       if (toDelete.length > 0) {
         await SubCategory.destroy({
-          where: { id: toDelete },
+          where: { 
+            id: toDelete,
+            category_id: id // Ensure we only delete subcategories from this category
+          },
         });
       }
 
-      // Use Promise.all for better performance
+      // Update or create subcategories
       await Promise.all(
         parsedSubcategories.map(async (sub) => {
-          // Skip if the subcategory data is invalid (e.g., empty object from frontend)
+          // Skip if the subcategory data is invalid
           if (!sub || !sub.name || sub.name.trim() === "") {
-            return; // Skip this iteration
+            return;
           }
 
           const subUpdateData = {
             name: sub.name,
-            description: sub.description,
-            icon: sub.icon,
-            status: sub.status,
-            sort_order: sub.sort_order,
+            description: sub.description || null,
+            icon: sub.icon || null,
+            status: sub.status || "active",
+            sort_order: sub.sort_order || 0,
           };
 
           if (sub.id) {
             // Update existing subcategory
             await SubCategory.update(subUpdateData, {
-              where: { id: sub.id, category_id: id },
+              where: { 
+                id: sub.id, 
+                category_id: id // Ensure we only update subcategories from this category
+              },
             });
           } else {
             // Create new subcategory
@@ -231,11 +248,19 @@ const updateCategory = catchAsync(async (req, res, next) => {
     }
   }
 
+  // Fetch the updated category with all associations
   const updatedCategory = await Category.findByPk(id, {
     include: [
       {
         model: SubCategory,
         as: "subcategories",
+        include: [
+          {
+            model: Product,
+            as: "products",
+            attributes: ["id", "name", "status"],
+          },
+        ],
         order: [["sort_order", "ASC"]],
       },
     ],

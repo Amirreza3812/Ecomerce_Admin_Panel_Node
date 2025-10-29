@@ -13,7 +13,7 @@ const {
   getCategoryIcons,
 } = require("../../controllers/api/admin/iconController");
 const { adminWithAudit } = require("../../middlewares/adminAuth");
-const { validateCategory } = require("../../middlewares/validation");
+const { validateCategory, validateCategoryPatch } = require("../../middlewares/validation");
 
 /**
  * @swagger
@@ -344,7 +344,7 @@ router.post(
 /**
  * @swagger
  * /api/v1/admin/categories/{id}:
- *   put:
+ *   patch:
  *     summary: Update category (Admin)
  *     tags: [Admin - Categories]
  *     security:
@@ -427,10 +427,10 @@ router.post(
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.put(
+router.patch(
   "/:id",
   ...adminWithAudit("UPDATE_CATEGORY"),
-  validateCategory,
+  validateCategoryPatch,
   updateCategory
 );
 

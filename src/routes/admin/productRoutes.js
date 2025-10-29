@@ -1,3 +1,4 @@
+// routes/admin/products.js
 const express = require("express");
 const router = express.Router();
 
@@ -8,12 +9,13 @@ const {
   updateProduct,
   deleteProduct,
   toggleProductStatus,
-  getProductStats, // <-- IMPORT the new controller function
+  getProductStats,
 } = require("../../controllers/api/admin/productController");
 
 const { adminWithAudit } = require("../../middlewares/adminAuth");
 const {
   validateProduct,
+  validateProductPatch,
   handleValidationErrors,
 } = require("../../middlewares/validation");
 const { upload } = require("../../middlewares/upload");
@@ -288,7 +290,7 @@ router.post(
 /**
  * @swagger
  * /api/v1/admin/products/{id}:
- *   put:
+ *   patch:
  *     summary: Update a product (Admin)
  *     tags: [Admin - Products]
  *     security:
@@ -299,8 +301,8 @@ router.post(
  *         required: true
  *         schema:
  *           type: integer
- *         description: Product ID
- *         example: 1
+ *           description: Product ID
+ *           example: 1
  *     requestBody:
  *       required: true
  *       content:
@@ -386,11 +388,11 @@ router.post(
  *       403:
  *         description: Forbidden - Admin role required
  */
-router.put(
+router.patch(
   "/:id",
   ...adminWithAudit("UPDATE_PRODUCT"),
   upload.single("image"),
-  validateProduct,
+  validateProductPatch,
   updateProduct
 );
 
@@ -408,8 +410,8 @@ router.put(
  *         required: true
  *         schema:
  *           type: integer
- *         description: Product ID
- *         example: 1
+ *           description: Product ID
+ *           example: 1
  *     responses:
  *       200:
  *         description: Product deleted successfully
@@ -447,7 +449,7 @@ router.delete("/:id", ...adminWithAudit("DELETE_PRODUCT"), deleteProduct);
  *         required: true
  *         schema:
  *           type: integer
- *         description: Product ID
+ *           description: Product ID
  *         example: 1
  *     responses:
  *       200:
