@@ -15,7 +15,7 @@ const Order = sequelize.define("Order", {
   order_number: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true,
+    // unique: true,
     comment: 'Unique order identifier for customers'
   },
   total_amount: {

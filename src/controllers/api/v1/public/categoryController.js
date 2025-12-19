@@ -40,6 +40,7 @@ const getAllCategories = catchAsync(async (req, res, next) => {
               "image",
               "rating",
               "total_reviews",
+              "ingredients",
             ],
             limit: 5,
           },

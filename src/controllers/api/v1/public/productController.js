@@ -106,6 +106,7 @@ const getAllProducts = catchAsync(async (req, res, next) => {
       "preparation_time",
       "calories",
       "allergens",
+      "ingredients",
       "subcategory_id",
     ],
     include: [
@@ -184,6 +185,7 @@ const getProduct = catchAsync(async (req, res, next) => {
       "total_reviews",
       "is_featured",
       "preparation_time",
+      "ingredients",
       "ingredients",
       "calories",
       "allergens",
@@ -266,6 +268,7 @@ const getFeaturedProducts = catchAsync(async (req, res, next) => {
       "image",
       "rating",
       "total_reviews",
+      "ingredients",
       "subcategory_id",
     ],
     include: [
@@ -345,6 +348,7 @@ const getRelatedProducts = catchAsync(async (req, res, next) => {
       "image",
       "rating",
       "total_reviews",
+      "ingredients",
       "subcategory_id",
     ],
     order: [
@@ -406,6 +410,7 @@ const getSaleProducts = catchAsync(async (req, res, next) => {
       "image",
       "rating",
       "total_reviews",
+      "ingredients",
       "subcategory_id",
     ],
     include: [
@@ -643,6 +648,7 @@ const getTopRatedProducts = catchAsync(async (req, res, next) => {
       "image",
       "rating",
       "total_reviews",
+      "ingredients",
       "subcategory_id",
     ],
     include: [
