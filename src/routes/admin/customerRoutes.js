@@ -6,6 +6,8 @@ const {
   manageComment,
   getAllComments,
   getFavoritesAnalytics,
+  sendCustomerSms,
+  sendBulkCustomerSms,
 } = require("../../controllers/api/admin/customerManagementController");
 
 // Import existing user management functions
@@ -389,6 +391,74 @@ router.get(
 
 /**
  * @swagger
+ * /api/v1/admin/customers/sms/bulk:
+ *   post:
+ *     summary: Send SMS to all active customers
+ *     description: |
+ *       Sends one SMS message to every active customer who has a phone number.
+ *       Customers without a phone number are skipped.
+ *       Currently uses a stub provider (logs to console); integrate a real SMS gateway later.
+ *     tags: [Admin - Customer Management]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - message
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 320
+ *                 description: SMS text body
+ *                 example: "تخفیف ویژه آخر هفته — ۲۰٪ روی همه محصولات"
+ *     responses:
+ *       200:
+ *         description: SMS queued for eligible customers
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "SMS queued for 12 customers (stub)"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     sent:
+ *                       type: integer
+ *                       description: Number of customers with a valid phone
+ *                       example: 12
+ *                     skipped:
+ *                       type: integer
+ *                       description: Customers without a usable phone
+ *                       example: 3
+ *                     status:
+ *                       type: string
+ *                       example: queued
+ *       400:
+ *         description: Validation error (missing or empty message)
+ *       401:
+ *         description: Unauthorized — missing or invalid token
+ *       403:
+ *         description: Forbidden — admin lacks permission
+ */
+router.post(
+  "/sms/bulk",
+  ...adminWithAudit("SEND_CUSTOMER_SMS"), // or same middleware as other customer actions
+  sendBulkCustomerSms
+);
+
+/**
+ * @swagger
  * /api/v1/admin/customers/{id}/profile:
  *   get:
  *     summary: Get detailed customer profile
@@ -535,5 +605,11 @@ router.patch(
  *         description: User deleted successfully
  */
 router.delete("/:id", ...adminWithAudit("DELETE_USER"), deleteUser);
+
+router.post(
+  "/:id/sms",
+  ...adminWithAudit("SEND_CUSTOMER_SMS"), // or a generic admin middleware
+  sendCustomerSms
+);
 
 module.exports = router;
