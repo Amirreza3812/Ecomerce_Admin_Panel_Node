@@ -107,6 +107,9 @@ OrderItem.belongsTo(Product, {
   as: "product",
 });
 
+Order.hasOne(Expense, { foreignKey: "order_id", as: "ledgerEntry" });
+Expense.belongsTo(Order, { foreignKey: "order_id", as: "order" });
+
 // Many-to-Many: User <-> Product (through Favorites)
 User.belongsToMany(Product, {
   through: Favorite,

@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 // Import all admin route modules
+const { requireModule } = require("../../middlewares/license");
 const authRoutes = require("./authRoutes");
 const productRoutes = require("./productRoutes");
 const categoryRoutes = require("./categoryRoutes");
@@ -17,16 +18,16 @@ const expenseRoutes = require("./expenseRoutes");
 
 // Admin routes
 router.use("/auth", authRoutes);
-router.use("/products", productRoutes);
-router.use("/categories", categoryRoutes);
-router.use("/subcategories", subcategoryRoutes);
-router.use("/orders", orderRoutes);
-router.use("/users", userRoutes);
-router.use("/customers", customerRoutes);
-router.use("/prices", priceRoutes);
 router.use("/dashboard", dashboardRoutes);
+router.use("/products", requireModule("products"), productRoutes);
+router.use("/categories", requireModule("categories"), categoryRoutes);
+router.use("/subcategories", requireModule("subcategories"), subcategoryRoutes);
+router.use("/orders", requireModule("orders"), orderRoutes);
+router.use("/prices", requireModule("prices"), priceRoutes);
+router.use("/users", requireModule("customers"), userRoutes);
+router.use("/customers", requireModule("customers"), customerRoutes);
+router.use("/workers", requireModule("personnel"), workerRoutes);
+router.use("/expenses", requireModule("banking"), expenseRoutes);
 router.use("/reports", reportsRoutes);
-router.use("/workers", workerRoutes);
-router.use("/expenses", expenseRoutes);
 
 module.exports = router;

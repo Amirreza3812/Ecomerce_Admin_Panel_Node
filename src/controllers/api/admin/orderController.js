@@ -1,10 +1,14 @@
-const catchAsync = require('../../../utils/catchAsync');
-const AppError = require('../../../utils/AppError');
-const Order = require('../../../models/entities/Order');
-const OrderItem = require('../../../models/entities/OrderItem');
-const Product = require('../../../models/entities/Product');
-const User = require('../../../models/entities/User');
-const { Op } = require('sequelize');
+const catchAsync = require("../../../utils/catchAsync");
+const AppError = require("../../../utils/AppError");
+const Order = require("../../../models/entities/Order");
+const OrderItem = require("../../../models/entities/OrderItem");
+const Product = require("../../../models/entities/Product");
+const User = require("../../../models/entities/User");
+const { Op } = require("sequelize");
+const {
+  ensureOrderIncome,
+  handleOrderPaymentReversal,
+} = require("../../../services/orderLedgerService");
 
 // Get all orders with filtering and pagination
 const getAllOrders = catchAsync(async (req, res) => {
@@ -14,7 +18,7 @@ const getAllOrders = catchAsync(async (req, res) => {
     status,
     startDate,
     endDate,
-    customer
+    customer,
   } = req.query;
 
   const offset = (page - 1) * limit;
@@ -24,35 +28,35 @@ const getAllOrders = catchAsync(async (req, res) => {
   if (status) where.status = status;
   if (startDate && endDate) {
     where.order_date = {
-      [Op.between]: [new Date(startDate), new Date(endDate)]
+      [Op.between]: [new Date(startDate), new Date(endDate)],
     };
   }
 
   const include = [
     {
       model: User,
-      as: 'user',
-      attributes: ['id', 'name', 'email', 'phone']
+      as: "user",
+      attributes: ["id", "name", "email", "phone"],
     },
     {
       model: OrderItem,
-      as: 'orderItems',
+      as: "orderItems",
       include: [
         {
           model: Product,
-          as: 'product',
-          attributes: ['id', 'name', 'price', 'image']
-        }
-      ]
-    }
+          as: "product",
+          attributes: ["id", "name", "price", "image"],
+        },
+      ],
+    },
   ];
 
   if (customer) {
     include[0].where = {
       [Op.or]: [
         { name: { [Op.like]: `%${customer}%` } },
-        { email: { [Op.like]: `%${customer}%` } }
-      ]
+        { email: { [Op.like]: `%${customer}%` } },
+      ],
     };
   }
 
@@ -61,7 +65,7 @@ const getAllOrders = catchAsync(async (req, res) => {
     include,
     limit: parseInt(limit),
     offset: parseInt(offset),
-    order: [['order_date', 'DESC']]
+    order: [["order_date", "DESC"]],
   });
 
   res.json({
@@ -72,9 +76,9 @@ const getAllOrders = catchAsync(async (req, res) => {
         total: count,
         page: parseInt(page),
         pages: Math.ceil(count / limit),
-        limit: parseInt(limit)
-      }
-    }
+        limit: parseInt(limit),
+      },
+    },
   });
 });
 
@@ -84,45 +88,52 @@ const getOrder = catchAsync(async (req, res) => {
     include: [
       {
         model: User,
-        as: 'user',
-        attributes: ['id', 'name', 'email', 'phone']
+        as: "user",
+        attributes: ["id", "name", "email", "phone"],
       },
       {
         model: OrderItem,
-        as: 'orderItems',
+        as: "orderItems",
         include: [
           {
             model: Product,
-            as: 'product',
-            attributes: ['id', 'name', 'price', 'image', 'description']
-          }
-        ]
-      }
-    ]
+            as: "product",
+            attributes: ["id", "name", "price", "image", "description"],
+          },
+        ],
+      },
+    ],
   });
 
   if (!order) {
     return res.status(404).json({
       success: false,
-      message: 'Order not found'
+      message: "Order not found",
     });
   }
 
   res.json({
     success: true,
-    data: order
+    data: order,
   });
 });
 
 // Update order status
 const updateOrderStatus = catchAsync(async (req, res) => {
   const { status } = req.body;
-  const validStatuses = ['pending', 'preparing', 'ready', 'delivered', 'cancelled'];
+  const validStatuses = [
+    "pending",
+    "confirmed",
+    "preparing",
+    "ready",
+    "completed",
+    "cancelled",
+  ];
 
   if (!validStatuses.includes(status)) {
     return res.status(400).json({
       success: false,
-      message: 'Invalid status. Valid statuses: ' + validStatuses.join(', ')
+      message: "Invalid status. Valid statuses: " + validStatuses.join(", "),
     });
   }
 
@@ -131,33 +142,53 @@ const updateOrderStatus = catchAsync(async (req, res) => {
   if (!order) {
     return res.status(404).json({
       success: false,
-      message: 'Order not found'
+      message: "Order not found",
     });
   }
 
   await order.update({ status });
 
+  const updates = { status };
+  if (status === "completed") {
+    updates.completed_at = new Date();
+    // optional: if cash and still pending payment, mark paid
+    // if (order.payment_method === 'cash' && order.payment_status === 'pending') {
+    //   updates.payment_status = 'paid';
+    // }
+  }
+
+  await order.update(updates);
+  await order.reload();
+
+  if (order.payment_status === "paid") {
+    await ensureOrderIncome(order, { created_by: req.user?.id });
+  }
+
   res.json({
     success: true,
-    message: 'Order status updated successfully',
-    data: { id: order.id, status: order.status }
+    message: "Order status updated successfully",
+    data: {
+      id: order.id,
+      status: order.status,
+      payment_status: order.payment_status,
+    },
   });
 });
 
 // Get order statistics
 const getOrderStats = catchAsync(async (req, res) => {
-  const { period = 'week' } = req.query; // week, month, year
+  const { period = "week" } = req.query; // week, month, year
 
   let startDate = new Date();
 
   switch (period) {
-    case 'week':
+    case "week":
       startDate.setDate(startDate.getDate() - 7);
       break;
-    case 'month':
+    case "month":
       startDate.setMonth(startDate.getMonth() - 1);
       break;
-    case 'year':
+    case "year":
       startDate.setFullYear(startDate.getFullYear() - 1);
       break;
   }
@@ -165,32 +196,36 @@ const getOrderStats = catchAsync(async (req, res) => {
   const orders = await Order.findAll({
     where: {
       order_date: {
-        [Op.gte]: startDate
-      }
+        [Op.gte]: startDate,
+      },
     },
     include: [
       {
         model: OrderItem,
-        as: 'orderItems'
-      }
-    ]
+        as: "orderItems",
+      },
+    ],
   });
 
   const stats = {
     totalOrders: orders.length,
-    totalRevenue: orders.reduce((sum, order) => sum + parseFloat(order.total), 0),
+    totalRevenue: orders.reduce(
+      (sum, order) => sum + parseFloat(order.total),
+      0
+    ),
     statusBreakdown: {},
-    dailyStats: {}
+    dailyStats: {},
   };
 
   // Status breakdown
-  orders.forEach(order => {
-    stats.statusBreakdown[order.status] = (stats.statusBreakdown[order.status] || 0) + 1;
+  orders.forEach((order) => {
+    stats.statusBreakdown[order.status] =
+      (stats.statusBreakdown[order.status] || 0) + 1;
   });
 
   // Daily stats for the period
-  orders.forEach(order => {
-    const date = order.order_date.toISOString().split('T')[0];
+  orders.forEach((order) => {
+    const date = order.order_date.toISOString().split("T")[0];
     if (!stats.dailyStats[date]) {
       stats.dailyStats[date] = { orders: 0, revenue: 0 };
     }
@@ -200,7 +235,7 @@ const getOrderStats = catchAsync(async (req, res) => {
 
   res.json({
     success: true,
-    data: stats
+    data: stats,
   });
 });
 
@@ -223,34 +258,39 @@ const getMonthlySalesReport = catchAsync(async (req, res) => {
   const orders = await Order.findAll({
     where: {
       order_date: {
-        [Op.between]: [startDate, endDate]
+        [Op.between]: [startDate, endDate],
       },
       status: {
-        [Op.not]: 'cancelled'
-      }
+        [Op.not]: "cancelled",
+      },
     },
     include: [
       {
         model: OrderItem,
-        as: 'orderItems',
+        as: "orderItems",
         include: [
           {
             model: Product,
-            as: 'product',
-            attributes: ['id', 'name', 'price']
-          }
-        ]
-      }
-    ]
+            as: "product",
+            attributes: ["id", "name", "price"],
+          },
+        ],
+      },
+    ],
   });
 
   const report = {
-    period: month ? `${year}-${month.toString().padStart(2, '0')}` : year.toString(),
+    period: month
+      ? `${year}-${month.toString().padStart(2, "0")}`
+      : year.toString(),
     totalOrders: orders.length,
-    totalRevenue: orders.reduce((sum, order) => sum + parseFloat(order.total), 0),
+    totalRevenue: orders.reduce(
+      (sum, order) => sum + parseFloat(order.total),
+      0
+    ),
     averageOrderValue: 0,
     topProducts: {},
-    dailyBreakdown: {}
+    dailyBreakdown: {},
   };
 
   // Calculate average order value
@@ -259,17 +299,18 @@ const getMonthlySalesReport = catchAsync(async (req, res) => {
   }
 
   // Top products
-  orders.forEach(order => {
-    order.orderItems.forEach(item => {
+  orders.forEach((order) => {
+    order.orderItems.forEach((item) => {
       const productName = item.product.name;
       if (!report.topProducts[productName]) {
         report.topProducts[productName] = {
           quantity: 0,
-          revenue: 0
+          revenue: 0,
         };
       }
       report.topProducts[productName].quantity += item.quantity;
-      report.topProducts[productName].revenue += item.quantity * parseFloat(item.price);
+      report.topProducts[productName].revenue +=
+        item.quantity * parseFloat(item.price);
     });
   });
 
@@ -280,8 +321,8 @@ const getMonthlySalesReport = catchAsync(async (req, res) => {
     .slice(0, 10);
 
   // Daily breakdown
-  orders.forEach(order => {
-    const date = order.order_date.toISOString().split('T')[0];
+  orders.forEach((order) => {
+    const date = order.order_date.toISOString().split("T")[0];
     if (!report.dailyBreakdown[date]) {
       report.dailyBreakdown[date] = { orders: 0, revenue: 0 };
     }
@@ -291,7 +332,33 @@ const getMonthlySalesReport = catchAsync(async (req, res) => {
 
   res.json({
     success: true,
-    data: report
+    data: report,
+  });
+});
+
+const updateOrderPayment = catchAsync(async (req, res, next) => {
+  const { payment_status, payment_method } = req.body;
+  const order = await Order.findByPk(req.params.id);
+  if (!order) return next(new AppError("Order not found", 404));
+
+  const data = {};
+  if (payment_status) data.payment_status = payment_status;
+  if (payment_method) data.payment_method = payment_method;
+
+  await order.update(data);
+  await order.reload();
+
+  if (order.payment_status === "paid") {
+    await ensureOrderIncome(order, { created_by: req.user?.id });
+  }
+  if (["refunded", "failed"].includes(order.payment_status)) {
+    await handleOrderPaymentReversal(order);
+  }
+
+  res.json({
+    success: true,
+    message: "Payment updated",
+    data: order,
   });
 });
 
@@ -300,5 +367,6 @@ module.exports = {
   getOrder,
   updateOrderStatus,
   getOrderStats,
-  getMonthlySalesReport
+  getMonthlySalesReport,
+  updateOrderPayment,
 };

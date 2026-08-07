@@ -3,6 +3,7 @@ const AppError = require("../../../utils/AppError");
 const ApiResponse = require("../../../utils/apiResponse");
 const Expense = require("../../../models/entities/Expense");
 const Worker = require("../../../models/entities/Worker");
+const Order = require("../../../models/entities/Order");
 const { Op } = require("sequelize");
 
 const getAllExpenses = catchAsync(async (req, res) => {
@@ -13,6 +14,7 @@ const getAllExpenses = catchAsync(async (req, res) => {
     category,
     payment_method,
     payment_status,
+    type, // "income" | "expense"
     from,
     to,
     search,
@@ -25,6 +27,12 @@ const getAllExpenses = catchAsync(async (req, res) => {
   if (category) where.category = category;
   if (payment_method) where.payment_method = payment_method;
   if (payment_status) where.payment_status = payment_status;
+
+  // NEW: filter income vs expense
+  if (type && (type === "income" || type === "expense")) {
+    where.type = type;
+  }
+
   if (from || to) {
     where.expense_date = {};
     if (from) where.expense_date[Op.gte] = from;
@@ -43,6 +51,19 @@ const getAllExpenses = catchAsync(async (req, res) => {
         attributes: ["id", "name", "job_title"],
         required: false,
       },
+      // NEW: link to order for sales income (only if association exists)
+      {
+        model: Order,
+        as: "order",
+        attributes: [
+          "id",
+          "order_number",
+          "final_amount",
+          "payment_method",
+          "payment_status",
+        ],
+        required: false,
+      },
     ],
     limit: parseInt(limit),
     offset: parseInt(offset),
@@ -59,7 +80,7 @@ const getAllExpenses = catchAsync(async (req, res) => {
       pagination: {
         total: count,
         page: parseInt(page),
-        pages: Math.ceil(count / limit),
+        pages: Math.ceil(count / limit) || 0,
         limit: parseInt(limit),
       },
     },

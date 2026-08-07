@@ -55,6 +55,18 @@ const Expense = sequelize.define(
       allowNull: false,
       comment: "Whether this bill/expense is settled",
     },
+    type: {
+      type: DataTypes.ENUM("income", "expense"),
+      allowNull: false,
+      defaultValue: "expense",
+    },
+    order_id: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      unique: true, // one income row per order
+      references: { model: "orders", key: "id" },
+      onDelete: "SET NULL",
+    },
   },
   {
     timestamps: true,
