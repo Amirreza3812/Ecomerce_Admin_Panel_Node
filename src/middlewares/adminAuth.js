@@ -1,21 +1,23 @@
-const jwt = require('jsonwebtoken');
-const catchAsync = require('../utils/catchAsync');
-const AppError = require('../utils/AppError');
-const User = require('../models/entities/User');
+const jwt = require("jsonwebtoken");
+const catchAsync = require("../utils/catchAsync");  
+const User = require("../models/entities/User");
 
 // Verify JWT token and check if user is authenticated
 const authenticate = catchAsync(async (req, res, next) => {
   let token;
 
   // Check for token in headers
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
+  if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
   }
 
   if (!token) {
     return res.status(401).json({
       success: false,
-      message: 'Access denied. No token provided.'
+      message: "Access denied. No token provided.",
     });
   }
 
@@ -25,21 +27,21 @@ const authenticate = catchAsync(async (req, res, next) => {
 
     // Get user from database
     const user = await User.findByPk(decoded.id, {
-      attributes: ['id', 'name', 'email', 'role', 'status']
+      attributes: ["id", "name", "email", "role", "status"],
     });
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Token is not valid. User not found.'
+        message: "Token is not valid. User not found.",
       });
     }
 
     // Check if user is active
-    if (user.status !== 'active') {
+    if (user.status !== "active") {
       return res.status(401).json({
         success: false,
-        message: 'Account is not active. Please contact administrator.'
+        message: "Account is not active. Please contact administrator.",
       });
     }
 
@@ -49,7 +51,7 @@ const authenticate = catchAsync(async (req, res, next) => {
   } catch (error) {
     return res.status(401).json({
       success: false,
-      message: 'Token is not valid.'
+      message: "Token is not valid.",
     });
   }
 });
@@ -59,14 +61,14 @@ const requireAdmin = catchAsync(async (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({
       success: false,
-      message: 'Authentication required.'
+      message: "Authentication required.",
     });
   }
 
-  if (req.user.role !== 'admin') {
+  if (!["admin", "super_admin"].includes(req.user.role)) {
     return res.status(403).json({
       success: false,
-      message: 'Access denied. Admin role required.'
+      message: "Access denied. Admin role required.",
     });
   }
 
@@ -79,14 +81,14 @@ const requireRole = (...roles) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'Authentication required.'
+        message: "Authentication required.",
       });
     }
 
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: `Access denied. Required roles: ${roles.join(', ')}`
+        message: `Access denied. Required roles: ${roles.join(", ")}`,
       });
     }
 
@@ -95,34 +97,40 @@ const requireRole = (...roles) => {
 };
 
 // Check if user owns the resource or is admin
-const requireOwnershipOrAdmin = (resourceUserIdField = 'user_id') => {
+const requireOwnershipOrAdmin = (resourceUserIdField = "user_id") => {
   return catchAsync(async (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        message: 'Authentication required.'
+        message: "Authentication required.",
       });
     }
 
     // Admin can access any resource
-    if (req.user.role === 'admin') {
+    if (req.user.role === "admin") {
       return next();
     }
 
     // Check ownership - user ID from URL params
     const resourceUserId = req.params.userId || req.params.id;
-    if (resourceUserId && req.user.id.toString() === resourceUserId.toString()) {
+    if (
+      resourceUserId &&
+      req.user.id.toString() === resourceUserId.toString()
+    ) {
       return next();
     }
 
     // Check ownership - user ID from request body
-    if (req.body[resourceUserIdField] && req.user.id.toString() === req.body[resourceUserIdField].toString()) {
+    if (
+      req.body[resourceUserIdField] &&
+      req.user.id.toString() === req.body[resourceUserIdField].toString()
+    ) {
       return next();
     }
 
     return res.status(403).json({
       success: false,
-      message: 'Access denied. You can only access your own resources.'
+      message: "Access denied. You can only access your own resources.",
     });
   });
 };
@@ -143,17 +151,20 @@ const adminRateLimit = catchAsync(async (req, res, next) => {
 const auditLog = (action) => {
   return catchAsync(async (req, res, next) => {
     // Log admin action
-    console.log(`[AUDIT] Admin ${req.user.id} (${req.user.email}) performed action: ${action}`, {
-      timestamp: new Date().toISOString(),
-      userId: req.user.id,
-      userEmail: req.user.email,
-      action,
-      resource: req.originalUrl,
-      method: req.method,
-      ip: req.ip,
-      userAgent: req.get('User-Agent'),
-      body: req.method !== 'GET' ? req.body : undefined
-    });
+    console.log(
+      `[AUDIT] Admin ${req.user.id} (${req.user.email}) performed action: ${action}`,
+      {
+        timestamp: new Date().toISOString(),
+        userId: req.user.id,
+        userEmail: req.user.email,
+        action,
+        resource: req.originalUrl,
+        method: req.method,
+        ip: req.ip,
+        userAgent: req.get("User-Agent"),
+        body: req.method !== "GET" ? req.body : undefined,
+      }
+    );
 
     next();
   });
@@ -161,7 +172,11 @@ const auditLog = (action) => {
 
 // Combine auth + admin + audit for easy use
 const adminOnly = [authenticate, requireAdmin];
-const adminWithAudit = (action) => [authenticate, requireAdmin, auditLog(action)];
+const adminWithAudit = (action) => [
+  authenticate,
+  requireAdmin,
+  auditLog(action),
+];
 
 module.exports = {
   authenticate,
@@ -171,5 +186,5 @@ module.exports = {
   adminRateLimit,
   auditLog,
   adminOnly,
-  adminWithAudit
+  adminWithAudit,
 };

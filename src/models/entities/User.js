@@ -67,6 +67,22 @@ const User = sequelize.define(
       allowNull: true,
       comment: "Password reset token expiration time",
     },
+    loyalty_stamps: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    loyalty_total_stamps: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    loyalty_claimed_stamps: {
+      type: DataTypes.JSON,
+      allowNull: true,
+      defaultValue: null,
+      comment: "Array of at_stamp values already used, e.g. [3, 10]",
+    },
     staff_role: {
       type: DataTypes.ENUM(
         "owner",

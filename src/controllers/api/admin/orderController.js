@@ -10,6 +10,8 @@ const {
   handleOrderPaymentReversal,
 } = require("../../../services/orderLedgerService");
 
+const { addStampForOrder } = require("../../../services/loyaltyService");
+
 // Get all orders with filtering and pagination
 const getAllOrders = catchAsync(async (req, res) => {
   const {
@@ -27,7 +29,7 @@ const getAllOrders = catchAsync(async (req, res) => {
 
   if (status) where.status = status;
   if (startDate && endDate) {
-    where.order_date = {
+    where.createdAt = {
       [Op.between]: [new Date(startDate), new Date(endDate)],
     };
   }
@@ -65,7 +67,7 @@ const getAllOrders = catchAsync(async (req, res) => {
     include,
     limit: parseInt(limit),
     offset: parseInt(offset),
-    order: [["order_date", "DESC"]],
+    order: [["createdAt", "DESC"]],
   });
 
   res.json({
@@ -338,27 +340,63 @@ const getMonthlySalesReport = catchAsync(async (req, res) => {
 
 const updateOrderPayment = catchAsync(async (req, res, next) => {
   const { payment_status, payment_method } = req.body;
+
   const order = await Order.findByPk(req.params.id);
-  if (!order) return next(new AppError("Order not found", 404));
+  if (!order) {
+    return next(new AppError("Order not found", 404));
+  }
 
   const data = {};
-  if (payment_status) data.payment_status = payment_status;
-  if (payment_method) data.payment_method = payment_method;
+  if (payment_status !== undefined) data.payment_status = payment_status;
+  if (payment_method !== undefined) data.payment_method = payment_method;
 
+  if (Object.keys(data).length === 0) {
+    return next(
+      new AppError("Provide payment_status and/or payment_method", 400)
+    );
+  }
+
+  // 1) Save payment first — this is the source of truth
   await order.update(data);
   await order.reload();
 
+  const sideEffects = { income: null, loyalty: null, errors: [] };
+
+  // 2) Income (never fail the request)
   if (order.payment_status === "paid") {
-    await ensureOrderIncome(order, { created_by: req.user?.id });
-  }
-  if (["refunded", "failed"].includes(order.payment_status)) {
-    await handleOrderPaymentReversal(order);
+    try {
+      const {
+        ensureOrderIncome,
+      } = require("../../../services/orderLedgerService");
+      sideEffects.income = await ensureOrderIncome(order, {
+        created_by: req.user?.id,
+      });
+    } catch (e) {
+      console.error("[payment] ensureOrderIncome:", e.message);
+      sideEffects.errors.push("income: " + e.message);
+    }
+
+    // 3) Loyalty stamp (never fail the request)
+    try {
+      const { addStampForOrder } = require("../../../services/loyaltyService");
+      if (typeof addStampForOrder === "function") {
+        sideEffects.loyalty = await addStampForOrder(order);
+      } else {
+        sideEffects.errors.push("loyalty: addStampForOrder is not a function");
+      }
+    } catch (e) {
+      console.error("[payment] addStampForOrder:", e.message);
+      console.error(e.stack);
+      sideEffects.errors.push("loyalty: " + e.message);
+    }
   }
 
+  // 4) Always 200 if payment was updated
   res.json({
     success: true,
     message: "Payment updated",
     data: order,
+    sideEffects, // optional: remove in production
   });
 });
 

@@ -9,13 +9,14 @@ const AppError = require("./src/utils/AppError");
 // Import the scheduled job
 require("./src/jobs/priceRestoreJob");
 
-
 // Import New API v1 Routes
 const publicApiRoutes = require("./src/routes/api/v1/public");
 const authApiRoutes = require("./src/routes/api/v1/auth");
 const commentsApiRoutes = require("./src/routes/api/v1/comments");
 const favoritesApiRoutes = require("./src/routes/api/v1/favorites");
 const adminApiRoutes = require("./src/routes/admin");
+const loyaltyRoutes = require("./src/routes/api/v1/loyalty");
+const customerOrderRoutes = require("./src/routes/api/v1/orders");
 
 const path = require("path");
 const app = express();
@@ -33,7 +34,7 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-app.use('/icons', express.static(path.join(__dirname, 'icons')));
+app.use("/icons", express.static(path.join(__dirname, "icons")));
 
 // Security Headers
 app.use((req, res, next) => {
@@ -61,6 +62,8 @@ app.use("/api/v1/auth", authApiRoutes);
 app.use("/api/v1/comments", commentsApiRoutes);
 app.use("/api/v1/favorites", favoritesApiRoutes);
 app.use("/api/v1/admin", adminApiRoutes); // این یه فایله که کل روت های داخل پوشه ادمین توش ایمپورت شدن یعنی دگیه نمیخواد همشو یکی یکی ایمپورت کنیم
+app.use("/api/v1/loyalty", loyaltyRoutes);
+app.use("/api/v1/orders", customerOrderRoutes);
 
 // Swagger Documentation
 const swaggerUi = require("swagger-ui-express");

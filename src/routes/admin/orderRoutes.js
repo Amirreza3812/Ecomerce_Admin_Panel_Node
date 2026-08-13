@@ -15,10 +15,16 @@ const { body, validationResult } = require("express-validator");
 // Status validation middleware
 const validateOrderStatus = [
   body("status")
-    .isIn(["pending", "preparing", "ready", "delivered", "cancelled"])
-    .withMessage(
-      "Status must be one of: pending, preparing, ready, delivered, cancelled"
-    ),
+    .notEmpty()
+    .isIn([
+      "pending",
+      "confirmed",
+      "preparing",
+      "ready",
+      "completed",
+      "cancelled",
+    ])
+    .withMessage("Invalid order status"),
 
   (req, res, next) => {
     const errors = validationResult(req);

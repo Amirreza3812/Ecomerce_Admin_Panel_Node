@@ -5,7 +5,10 @@ const ApiResponse = require("../../../utils/apiResponse");
 const catchAsync = require("../../../utils/catchAsync");
 const AppError = require("../../../utils/AppError");
 const crypto = require("crypto");
-const { getPublicLicense } = require("../../../config/license");
+const {
+  getPublicLicense,
+  getPublicLicenseSync,
+} = require("../../../config/license");
 
 // Generate JWT Token for admin
 const signToken = (id, tokenVersion, role) => {
@@ -43,7 +46,7 @@ const createSendToken = (user, statusCode, res, message) => {
         permissions: user.permissions || null,
         lastLogin: new Date(),
       },
-      license: getPublicLicense(), // offline stub
+      license: getPublicLicenseSync(), // offline stub
     },
     message,
     statusCode

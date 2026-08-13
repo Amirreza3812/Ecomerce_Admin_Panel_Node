@@ -15,6 +15,9 @@ const dashboardRoutes = require("./dashboardRoutes");
 const reportsRoutes = require("./reportsRoutes");
 const workerRoutes = require("./workerRoutes");
 const expenseRoutes = require("./expenseRoutes");
+const settingsRoutes = require("./settingsRoutes");
+const staffRoutes = require("./staffRoutes");
+const superLicenseRoutes = require("./superLicenseRoutes");
 
 // Admin routes
 router.use("/auth", authRoutes);
@@ -28,6 +31,9 @@ router.use("/users", requireModule("customers"), userRoutes);
 router.use("/customers", requireModule("customers"), customerRoutes);
 router.use("/workers", requireModule("personnel"), workerRoutes);
 router.use("/expenses", requireModule("banking"), expenseRoutes);
+router.use("/settings", settingsRoutes);
 router.use("/reports", reportsRoutes);
+router.use("/staff", staffRoutes);
+router.use("/super", superLicenseRoutes);
 
 module.exports = router;
